@@ -29,7 +29,7 @@ my %opt = (
 
 if(!GetOptions(\%opt,
     'help|?', 'listener|l', 'port|p=s', 'command|c=s', 
-    'unpack-term', 'wrap-ssh|s',
+    'unpack-term', 'wrap-ssh|s', 'install',
 )) {
     pod2usage(-exitval => 1,  -verbose => 0);
 }
@@ -43,6 +43,7 @@ if($opt{listener}) {
 }
 elsif($opt{'unpack-term'}) { unpack_term();      }
 elsif($opt{'wrap-ssh'})    { wrap_ssh();         }
+elsif($opt{'install'})     { install_to_host();  }
 else                       { run_command(@ARGV); }
 
 exit 0;
@@ -122,6 +123,22 @@ sub wrap_ssh {
         @args = @orig;
     }
     system 'ssh', @args;
+}
+
+
+sub install_to_host {
+    my $host = shift @ARGV or pod2usage(-exitval => 1,  -verbose => 0,
+        -message => 'Host name required'
+    );
+
+    if(system("ssh $host test -d ./bin") != 0) {
+        print "Creating bin directory on host '$host'\n";
+        system("ssh $host mkdir ./bin") == 0 
+            or die "** mkdir failed";
+    }
+    print "Copying bcvi to remote bin directory\n";
+    system("scp $0 $host:bin/") == 0 
+        or die "** failed to copy bcvi to remote bin directory";
 }
 
 
@@ -322,6 +339,7 @@ bcvi - Back-channel vi, proxy commands back over ssh
    -c|--command <cmnd>  command to send over back-channel
    -s|--wrap-ssh        pass all args after -- to ssh
       --unpack-term     unpack the overloaded TERM variable
+      --install <host>  copy bcvi to <host>
    -?|--help            detailed help message
 
 =head1 DESCRIPTION
@@ -378,6 +396,10 @@ an scp URI.
 Uses C<scp> to copy the file to the calling user's F<~/Desktop>.
 
 =back
+
+=item B<< --install <host> >>
+
+Copy the C<bcvi> script to the C<$HOME/bin> directory on the specified host.
 
 =item B<< --unpack-term >>
 
