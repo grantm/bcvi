@@ -28,7 +28,7 @@ my %opt = (
 );
 
 if(!GetOptions(\%opt,
-    'help|?', 'listener|l', 'port|p=s', 'command|c=s', 
+    'help|?', 'listener|l', 'port|p=s', 'command|c=s', 'no-path-xlate|n',
     'unpack-term', 'wrap-ssh|s', 'install', 'add-aliases',
 )) {
     pod2usage(-exitval => 1,  -verbose => 0);
@@ -51,7 +51,9 @@ exit 0;
 
 
 sub run_command {
-    my @files = map { File::Spec->rel2abs($_) } @_;
+    my @files = map {
+        $opt{'no-path-xlate'} ? $_ : File::Spec->rel2abs($_)
+    } @_;
 
     my $command = $opt{command};
     my($alias, $gateway, $port, $auth_key) = connection_details();
@@ -278,7 +280,7 @@ sub _save_pid {
 
 sub _kill_pid {
     my($pid) = @_;
-    
+
     chomp($pid);
     foreach my $i (1..5) {
         if(kill 0, $pid) {
@@ -419,6 +421,7 @@ bcvi - Back-channel vi, proxy commands back over ssh
    -l|--listener        start in listener mode
    -p|--port <port>     listener port number
    -c|--command <cmnd>  command to send over back-channel
+   -n|--no-path-xlate   skip translation of args from relative to absolute
    -s|--wrap-ssh        pass all args after -- to ssh
       --unpack-term     unpack the overloaded TERM variable
       --install <host>  copy bcvi to <host>
@@ -479,6 +482,12 @@ an scp URI.
 Uses C<scp> to copy the file to the calling user's F<~/Desktop>.
 
 =back
+
+=item B<< --no-path-xlate >> (alias -n)
+
+When invoking a command use this option to indicate that the arguments are not
+filenames and the translation of relative pathnames to absolute should be
+skipped.
 
 =item B<< --install <host> >>
 
