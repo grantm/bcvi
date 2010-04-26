@@ -29,7 +29,7 @@ my %opt = (
 
 if(!GetOptions(\%opt,
     'help|?', 'listener|l', 'port|p=s', 'command|c=s', 
-    'unpack-term', 'wrap-ssh|s', 'install',
+    'unpack-term', 'wrap-ssh|s', 'install', 'add-aliases',
 )) {
     pod2usage(-exitval => 1,  -verbose => 0);
 }
@@ -44,6 +44,7 @@ if($opt{listener}) {
 elsif($opt{'unpack-term'}) { unpack_term();      }
 elsif($opt{'wrap-ssh'})    { wrap_ssh();         }
 elsif($opt{'install'})     { install_to_host();  }
+elsif($opt{'add-aliases'}) { add_aliases();      }
 else                       { run_command(@ARGV); }
 
 exit 0;
@@ -133,12 +134,93 @@ sub install_to_host {
 
     if(system("ssh $host test -d ./bin") != 0) {
         print "Creating bin directory on host '$host'\n";
-        system("ssh $host mkdir ./bin") == 0 
+        system("ssh $host mkdir ./bin") == 0
             or die "** mkdir failed";
     }
     print "Copying bcvi to remote bin directory\n";
-    system("scp $0 $host:bin/") == 0 
+    system("scp $0 $host:bin/") == 0
         or die "** failed to copy bcvi to remote bin directory";
+    print "Adding bcvi command aliases\n";
+    system("ssh $host bin/bcvi --add-aliases") == 0
+        or die "** failed to copy bcvi to remote bin directory";
+}
+
+
+sub add_aliases {
+    my $home = (getpwuid($>))[7];
+
+    my $bcvi_commands = desired_commands();
+
+    foreach my $file (
+        "$home/.bogusrc",
+        "$home/.common-configs/bashrc",
+        "$home/.bashrc",
+    ) {
+        my($script) = read_file($file) or next;
+        if(index($script, $bcvi_commands) > -1) {
+            print "bcvi commands are in $file\n";
+            exit 0;
+        }
+        if($script =~ s{^## START-BCVI.*^## END-BCVI\r?\n}{$bcvi_commands}sm) {
+            open my $fh, '>', $file or die "open($file): $!";
+            print $fh $script;
+            close($fh);
+            print "updated bcvi commands in $file\n";
+            exit 0;
+        }
+        if($script =~ m{^[^#]*\bbcvi\b}m) {
+            print "adhoc bcvi commands found in $file\n";
+            exit 0;
+        }
+    }
+
+    # Add to .bashrc_local if it is referenced from .bashrc
+
+    my $bashrc       = "$home/.bashrc";
+    my $bashrc_local = "$home/.bashrc_local";
+
+    my $script = read_file($bashrc) || '';
+    if($script =~ m{/[.]bashrc_local\b}) {
+        open my $fh, '>>', $bashrc_local or die "open(>>$bashrc_local): $!";
+        print $fh "\n$bcvi_commands\n";
+        close($fh);
+        print "added bcvi commands to $bashrc_local\n";
+        exit 0;
+    }
+    else {
+        open my $fh, '>>', $bashrc or die "open(>>$bashrc): $!";
+        print $fh "\n$bcvi_commands\n";
+        close($fh);
+        print "added bcvi commands to $bashrc\n";
+        exit 0;
+    }
+
+    die "bcvi commands do not appear to be installed\n";
+}
+
+
+sub desired_commands {
+
+    return <<'EOF'
+## START-BCVI
+  test -n "$(which bcvi)" && eval "$(bcvi --unpack-term)"
+  test -n "${BCVI_CONF}"  && alias vi="bcvi"
+  test -n "${BCVI_CONF}"  && alias bcp="bcvi -c scpd"
+## END-BCVI
+EOF
+}
+
+
+sub read_file {
+    my($path) = @_;
+    return unless -e $path;
+    return if -d $path;
+    my $data = do {
+        open my $fh, '<', $path or die "open($path): $!\n";
+        local($/) = undef;
+        <$fh>;
+    };
+    return $data;
 }
 
 
@@ -340,6 +422,7 @@ bcvi - Back-channel vi, proxy commands back over ssh
    -s|--wrap-ssh        pass all args after -- to ssh
       --unpack-term     unpack the overloaded TERM variable
       --install <host>  copy bcvi to <host>
+      --add-aliases     install bcvi into bash startup files
    -?|--help            detailed help message
 
 =head1 DESCRIPTION
@@ -399,7 +482,13 @@ Uses C<scp> to copy the file to the calling user's F<~/Desktop>.
 
 =item B<< --install <host> >>
 
-Copy the C<bcvi> script to the C<$HOME/bin> directory on the specified host.
+Copy the C<bcvi> script to the C<$HOME/bin> directory on the specified host
+and then remotely invoke it with the C<--add-aliases> option.
+
+=item B<< --add-aliases >>
+
+Edit the bash startup script to add (or update) the required command aliases
+for bcvi.
 
 =item B<< --unpack-term >>
 
