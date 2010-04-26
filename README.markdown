@@ -10,7 +10,7 @@ connected to a remote server (say www.example.com) and type a command like:
 The bcvi utility sends a message back to your workstation which causes a
 command like this to be run:
 
-    gvim scp://www.example.com/.bashrc
+    gvim scp://server.example.com/.bashrc
 
 Because the editor process is running on your workstation:
 
