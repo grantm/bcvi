@@ -208,6 +208,7 @@ sub desired_commands {
   test -n "$(which bcvi)" && eval "$(bcvi --unpack-term)"
   test -n "${BCVI_CONF}"  && alias vi="bcvi"
   test -n "${BCVI_CONF}"  && alias bcp="bcvi -c scpd"
+  test -n "${BCVI_CONF}"  && alias bnotify="bcvi -n -c notify"
 ## END-BCVI
 EOF
 }
@@ -247,6 +248,8 @@ use Digest::MD5  qw(md5_hex);
 
 sub new {
     my($class, %opt) = @_;
+
+    require Desktop::Notify;
 
     _save_pid();
     my $listener = IO::Socket::INET->new(
@@ -406,6 +409,25 @@ sub execute_scpd {
     system('scp', '--', @files, "$home/Desktop");
 }
 
+
+sub execute_notify {
+    my($self, $alias, @parts) = @_;
+
+    my $title = "Notification from $alias";
+
+    my $message = join ' ', @parts;
+
+    my $notify = Desktop::Notify->new();
+
+    my $notification = $notify->create(
+        summary => $title,
+        body    => $message,
+        timeout => 10000,
+    );
+
+    $notification->show();
+}
+
 __END__
 
 =head1 NAME
@@ -480,6 +502,11 @@ an scp URI.
 =item scpd
 
 Uses C<scp> to copy the file to the calling user's F<~/Desktop>.
+
+=item notify
+
+Uses the desktop notification protocol to display a message on the calling
+user's desktop.
 
 =back
 
