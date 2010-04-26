@@ -3,7 +3,7 @@ bcvi - Back-channel vi
 
 This is a handy little utility for people who use SSH to connect to servers
 but like to use gvim (a GUI version of vim) to edit files.  When you're
-connected to a remote server (say www.example.com) and type a command like:
+connected to a remote server (say server.example.com) and type a command like:
 
     bcvi .bashrc
 
