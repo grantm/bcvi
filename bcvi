@@ -249,7 +249,11 @@ use Digest::MD5  qw(md5_hex);
 sub new {
     my($class, %opt) = @_;
 
-    require Desktop::Notify;
+    eval { require Desktop::Notify; };
+    if($@) {
+        warn "bcvi warning: Desktop::Notify not installed\n";
+        $@ = '';
+    }
 
     _save_pid();
     my $listener = IO::Socket::INET->new(
@@ -416,6 +420,12 @@ sub execute_notify {
     my $title = "Notification from $alias";
 
     my $message = join ' ', @parts;
+
+    if(not Desktop::Notify->can('new')) {
+        warn "bcvi warning: can't pop up notifications without Desktop::Notify\n";
+        warn qq{$title:\n  "$message"\n};
+        return;
+    }
 
     my $notify = Desktop::Notify->new();
 
