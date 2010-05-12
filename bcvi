@@ -20,7 +20,7 @@ use Getopt::Long qw(GetOptions);
 use File::Spec;
 use Sys::Hostname;
 
-my $VERSION = '2.0';
+my $VERSION = '2.01';
 
 my %opt = (
     port    => ($< * 10 + 9),
@@ -36,6 +36,7 @@ if(!GetOptions(\%opt,
     'no-path-xlate|n',
     'port|p=s',
     'unpack-term',
+    'version|v',
     'wrap-ssh|s',
 )) {
     pod2usage(-exitval => 1,  -verbose => 0);
@@ -52,6 +53,7 @@ elsif($opt{'unpack-term'}) { unpack_term();      }
 elsif($opt{'wrap-ssh'})    { wrap_ssh();         }
 elsif($opt{'install'})     { install_to_host();  }
 elsif($opt{'add-aliases'}) { add_aliases();      }
+elsif($opt{'version'})     { show_versions();    }
 else                       { run_command(@ARGV); }
 
 exit 0;
@@ -70,6 +72,12 @@ sub run_command {
     my $welcome = <$sock>;
     if(!$welcome or $welcome !~ /^200 READY/) {
         die "No listener?\n";
+    }
+    if($opt{version}) {
+        my($version) = $welcome =~ m{^200 READY \(([\d.]+)\)};
+        $version ||= 'unknown';
+        print "bcvi server: $version\n";
+        exit;
     }
     $sock->write("AUTH $auth_key\x0a");
     $sock->write(join qq{\x0A}, $alias, $command, @files, qq{\x0A})
@@ -95,6 +103,12 @@ sub unpack_term {
     foreach (@parts) {
         print if s{^(\w+)=(.*)$}{export $1="$2"\n};
     }
+}
+
+
+sub show_versions {
+    print "bcvi client: $VERSION\n";
+    run_command() if $ENV{BCVI_CONF};
 }
 
 
