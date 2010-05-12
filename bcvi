@@ -28,8 +28,15 @@ my %opt = (
 );
 
 if(!GetOptions(\%opt,
-    'help|?', 'listener|l', 'port|p=s', 'command|c=s', 'no-path-xlate|n',
-    'unpack-term', 'wrap-ssh|s', 'install', 'add-aliases',
+    'add-aliases',
+    'command|c=s',
+    'help|?',
+    'install',
+    'listener|l',
+    'no-path-xlate|n',
+    'port|p=s',
+    'unpack-term',
+    'wrap-ssh|s',
 )) {
     pod2usage(-exitval => 1,  -verbose => 0);
 }
