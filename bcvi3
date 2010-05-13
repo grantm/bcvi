@@ -17,15 +17,11 @@ use warnings;
 
 $BCVI::VERSION   = '3.00';
 
-%BCVI::class_map = (
-    base   => 'BCVI',
-    client => 'BCVI::Client',
-    server => 'BCVI::Server',
-);
+BCVI->base_init();
 
-BCVI::load_libs();
+BCVI->load_plugins();
 
-BCVI::base_class()->process_command_line();
+BCVI->base_class()->process_command_line();
 
 exit;
 
@@ -36,13 +32,148 @@ exit;
 
 package BCVI;
 
-use Pod::Usage;
 use Getopt::Long qw(GetOptions);
 
-sub version      { return $BCVI::VERSION;           }
-sub base_class   { return $BCVI::class_map{base};   }
-sub client_class { return $BCVI::class_map{client}; }
-sub server_class { return $BCVI::class_map{server}; }
+our(%class_map, @options);
+BEGIN {
+    %class_map = (
+        base   => 'BCVI',
+        client => 'BCVI::Client',
+        server => 'BCVI::Server',
+        pod    => 'BCVI::POD',
+    );
+}
+
+sub version      { return $BCVI::VERSION;     }
+sub base_class   { return $class_map{base};   }
+sub client_class { return $class_map{client}; }
+sub server_class { return $class_map{server}; }
+sub pod_class    { return $class_map{pod};    }
+
+
+sub base_init {
+    my($class) = @_;
+
+    $class->pod_class->init();
+
+    $class->register_option(
+        long_form   => 'help',
+        short_form  => '?',
+        summary     => 'detailed help message',
+        description => <<'END_POD'
+Display this documentation.
+END_POD
+    );
+
+    $class->register_option(
+        long_form   => 'add-aliases',
+        summary     => 'install bcvi into shell startup files',
+        description => <<'END_POD'
+Edit the bash startup script to add (or update) the required command aliases
+for bcvi
+END_POD
+    );
+
+    $class->register_option(
+        long_form   => 'listener',
+        short_form  => 'l',
+        summary     => 'start in listener mode',
+        description => <<'END_POD'
+Start a background listener process.  Also generates a new authentication key.
+END_POD
+    );
+
+    $class->register_option(
+        long_form   => 'install',
+        summary     => 'copy bcvi to named hosts',
+        description => <<'END_POD'
+Copy the C<bcvi> script to the C<$HOME/bin> directory on the specified host
+and then remotely invoke it with the C<--add-aliases> option.
+END_POD
+    );
+
+    $class->register_option(
+        long_form   => 'unpack-term',
+        summary     => 'unpack the overloaded TERM variable',
+        description => <<'END_POD'
+This option is intended for use from a F<.profile> script.  It outputs a
+snippet of shell script to be passed to C<eval> in the calling shell.
+END_POD
+    );
+
+    $class->register_option(
+        long_form   => 'wrap-ssh',
+        short_form  => 's',
+        summary     => 'pass all args after -- to ssh',
+        description => <<'END_POD'
+A wrapper around invoking ssh to connect to a specified host.  Ensures the
+environment is set up to pass the authentication key and other data to the
+C<bcvi> client on the remote server.
+END_POD
+    );
+
+    $class->register_option(
+        long_form   => 'version',
+        short_form  => 'v',
+        summary     => 'display bcvi version number',
+        description => <<'END_POD'
+When invoking a command use this option to indicate that the arguments are not
+filenames and the translation of relative pathnames to absolute should be
+skipped.
+END_POD
+    );
+
+    $class->register_option(
+        long_form   => 'no-path-xlate',
+        short_form  => 'n',
+        summary     => 'skip translation of args from relative to absolute',
+        description => <<'END_POD'
+Displays the version number of the bcvi client and if applicable, of the
+listener process.
+END_POD
+    );
+
+    $class->register_option(
+        long_form   => 'port',
+        short_form  => 'p',
+        arg_type    => 'i',
+        arg_name    => '<port>',
+        summary     => 'listener port number',
+        description => <<'END_POD'
+Port number to listen on (default is user_id * 10 + 9).
+END_POD
+    );
+
+    $class->register_option(
+        long_form   => 'command',
+        short_form  => 'c',
+        arg_type    => 's',
+        arg_name    => '<cmnd>',
+        summary     => 'listener port number',
+        description => <<'END_POD'
+Use C<cmnd> as the command to send over the back-channel (default: vi).
+Recognised commands are described in L<COMMANDS> below.
+END_POD
+    );
+
+}
+
+
+sub register_option {
+    my $class = shift;
+    my $opt   = { @_ };
+    if(!defined $opt->{long_form} or !length $opt->{long_form}) {
+        die "Can't register option without 'long_form'";
+    }
+    push @options, $opt;
+}
+
+
+sub each_option {
+    my($class, $sub) = @_;
+
+    $sub->($_) foreach sort { $a->{long_form} cmp $b->{long_form} } @options
+}
 
 
 sub new {
@@ -52,8 +183,22 @@ sub new {
 }
 
 
-sub load_libs {
+sub load_plugins {
     return;
+}
+
+
+sub hook_client_class {
+    # determine calling package
+    # adjust inheritance chain
+    # set $BCVI::class_map{client};
+}
+
+
+sub hook_server_class {
+    # determine calling package
+    # adjust inheritance chain
+    # set $BCVI::class_map{server};
 }
 
 
@@ -64,11 +209,16 @@ sub process_command_line {
     my @cfg = $class->getopt_config();
 
     if(!GetOptions($opt, @cfg)) {
-        pod2usage(-exitval => 1,  -verbose => 0);
+        $class->pod_class->synopsis();
+        exit(1);
     }
 
-    pod2usage(-exitstatus => 0, -verbose => 2) if($opt->{'help'});
+    if($opt->{'help'}) {
+        $class->pod_class->full_pod();
+        exit(1);
+    }
 
+die "bailing out";
     my $handler = $opt->{listener}
                 ? $class->server_class
                 : $class->client_class;
@@ -86,18 +236,17 @@ sub option_defaults {
 
 
 sub getopt_config {
-    return (
-        'add-aliases',
-        'command|c=s',
-        'help|?',
-        'install',
-        'listener|l',
-        'no-path-xlate|n',
-        'port|p=s',
-        'unpack-term',
-        'version|v',
-        'wrap-ssh|s',
-    );
+    my($class) = @_;
+
+    my @spec;
+    $class->each_option(sub {
+        my($o) = @_;
+        my $def = $o->{long_form};
+        $def .= "|$o->{short_form}" if defined $o->{short_form};
+        $def .= "=$o->{arg_type}"   if defined $o->{arg_type};
+        push @spec, $def;
+    });
+    return @spec
 }
 
 ##############################################################################
@@ -121,7 +270,90 @@ package BCVI::Server;
 BEGIN { @BCVI::Server::ISA = qw( BCVI ); }
 
 
-__END__
+##############################################################################
+# The BCVI::POD class implements POD extraction and formatting on platforms
+# where POD::Text is available.
+##############################################################################
+
+package BCVI::POD;
+
+use Pod::Text;
+
+my $pod_skeleton;
+
+
+sub init {
+    my($class) = @_;
+
+    $pod_skeleton = do {
+        local($/) = undef;
+        <DATA>;
+    };
+}
+
+
+sub full_pod {
+    my($class) = @_;
+
+    my $pod = $pod_skeleton;
+    $pod =~ s{^=for BCVI_OPTIONS_SUMMARY\s*\n}{ $class->option_summary()}me;
+    $pod =~ s{^=for BCVI_OPTIONS\s*\n}{ $class->option_detail()}me;
+    my $parser = Pod::Text->new (sentence => 1, width => 78);
+    $parser->output_fh(*STDOUT);
+    $parser->parse_string_document($pod);
+}
+
+
+sub synopsis {
+    my($class) = @_;
+
+    my $pod = $pod_skeleton;
+    $pod =~ s{\A.*?^=head1 SYNOPSIS\s*?\n}{Usage:}ms;
+    $pod =~ s{^=.*\z}{}ms;
+    $pod .= $class->option_summary();
+
+    print $pod;
+}
+
+
+sub option_summary {
+    my($class) = @_;
+
+    my $w   = 12;
+    my @lines;
+    BCVI->base_class->each_option(sub {
+        my($o)    = @_;
+        my $short = "--$o->{long_form}";
+        $short    .= "|-$o->{short_form}" if $o->{short_form};
+        $short    .= " $o->{arg_name}"    if $o->{arg_name};
+        push @lines, [ $short, $o->{summary} ];
+        $w = length($short) if length($short) > $w;
+    });
+
+    return join('', map { sprintf("  %-*s  %s\n", $w, @$_) } @lines) . "\n";
+}
+
+
+sub option_detail {
+    my($class) = @_;
+
+    my $w   = 12;
+    my @lines = "=over 4\n";
+    BCVI->base_class->each_option(sub {
+        my($o)    = @_;
+        my $pod = "\n=item B<--$o->{long_form}>";
+        $pod .= " (alias: -$o->{short_form})" if $o->{short_form};
+        $pod .= " $o->{arg_name}"             if $o->{arg_name};
+        $pod .= "\n\n$o->{description}\n";
+        push @lines, $pod;
+    });
+    push @lines, "\n=back\n\n";
+
+    return join "\n\n", @lines;
+}
+
+
+__DATA__
 
 =head1 NAME
 
@@ -133,15 +365,7 @@ bcvi - Back-channel vi, proxy commands back over ssh
 
   Options:
 
-   -l|--listener        start in listener mode
-   -p|--port <port>     listener port number
-   -c|--command <cmnd>  command to send over back-channel
-   -n|--no-path-xlate   skip translation of args from relative to absolute
-   -s|--wrap-ssh        pass all args after -- to ssh
-      --unpack-term     unpack the overloaded TERM variable
-      --install <host>  copy bcvi to <host>
-      --add-aliases     install bcvi into bash startup files
-   -?|--help            detailed help message
+=for BCVI_OPTIONS_SUMMARY
 
 =head1 DESCRIPTION
 
@@ -167,78 +391,20 @@ machine, but editing a file on the remote machine
 
 =back
 
-
 =head1 OPTIONS
 
-=over 4
-
-=item B<--listener> (alias: -l)
-
-Start a (background) listener process.
-
-=item B<< --port <port> >> (alias: -p)
-
-Port number to listen on (default is user_id * 10 + 9).
-
-=item B<< --command <cmnd> >> (alias: -c)
-
-Use C<cmnd> as the command to send over the back-channel (default: vi).
-Recognised commands are:
-
-=over 4
-
-=item vi
-
-Invokes C<gvim> on the remote file - after translating the host+path to
-an scp URI.
-
-=item scpd
-
-Uses C<scp> to copy the file to the calling user's F<~/Desktop>.
-
-=item notify
-
-Uses the desktop notification protocol to display a message on the calling
-user's desktop.
-
-=back
-
-=item B<< --no-path-xlate >> (alias -n)
-
-When invoking a command use this option to indicate that the arguments are not
-filenames and the translation of relative pathnames to absolute should be
-skipped.
-
-=item B<< --install <host> >>
-
-Copy the C<bcvi> script to the C<$HOME/bin> directory on the specified host
-and then remotely invoke it with the C<--add-aliases> option.
-
-=item B<< --add-aliases >>
-
-Edit the bash startup script to add (or update) the required command aliases
-for bcvi.
-
-=item B<< --unpack-term >>
-
-This option is intended for use from a F<.profile> script.  It outputs a
-snippet to shell script to be passed to C<eval> in the calling shell.
-
-The C<bcvi> script overloads the TERM environment variable (which is
-propagated by ssh) to 'smuggle' config data to the remote shell.
-
-=item B<-?>
-
-Display this documentation.
-
-=back
+=for BCVI_OPTIONS
 
 =head1 USING BCVI
 
 You'll need to start a listener process on your workstation (perhaps from
-your window manager session startup?
+your window manager session startup).
 
   bcvi -l &
+
+To install the bcvi client to a remote machine:
+
+  bcvi --install <hostname>
 
 To ssh to a server with tunnelling enabled:
 
@@ -256,7 +422,7 @@ To use vi over the back-channel:
 
   bcvi filename
 
-You might want to set up command aliases:
+The installation to a remote server should set up aliases, e.g.:
 
   test -n "${BCVI_CONF}"  && alias vi="bcvi"
   test -n "${BCVI_CONF}"  && alias bcp="bcvi -c scpd"
@@ -267,8 +433,6 @@ Copyright 2007-2010 Grant McLean E<lt>grantm@cpan.orgE<gt>
 
 This library is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
-
-
 
 =cut
 
