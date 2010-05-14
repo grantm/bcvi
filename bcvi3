@@ -194,13 +194,6 @@ sub each_option {
 }
 
 
-sub new {
-    my $class = shift;
-
-    return bless { @_ }, $class;
-}
-
-
 sub load_plugins {
     return;
 }
@@ -231,25 +224,16 @@ sub process_command_line {
         exit(1);
     }
 
-    if($opt->{'help'}) {
-        $class->pod_class->full_pod();
-        exit(1);
-    }
-
-die "bailing out";
     my $handler = $opt->{listener}
                 ? $class->server_class
                 : $class->client_class;
 
-    $handler->new(%$opt)->dispatch(@main::ARGV);
+    $handler->new(_options => $opt)->dispatch(@main::ARGV);
 }
 
 
 sub option_defaults {
-    return {
-        port    => ($< * 10 + 9),
-        command => 'vi',
-    };
+    return { };
 }
 
 
@@ -267,6 +251,25 @@ sub getopt_config {
     return @spec
 }
 
+
+sub new {
+    my $class = shift;
+
+    return bless { @_ }, $class;
+}
+
+
+sub opt {
+    my($self, $key) = @_;
+
+    return $self->{_options}->{$key};
+}
+
+
+sub default_port {
+    return($< * 10 + 9);
+}
+
 ##############################################################################
 # The BCVI::Client class implements the command-line UI and the client side
 # of the BCVI protocol.  You can use inheritance to customise the behaviour
@@ -278,6 +281,18 @@ package BCVI::Client;
 BEGIN { @BCVI::Client::ISA = qw( BCVI ); }
 
 
+sub dispatch {
+    my($self) = @_;
+
+    if($self->opt('help')) {
+        $self->pod_class->full_pod();
+        exit(1);
+    }
+
+    die "Client has run out of ideas";
+}
+
+
 ##############################################################################
 # The BCVI::Server class implements the server side of the BCVI protocol.  You
 # can use inheritance to customise the behaviour of this class.
@@ -286,6 +301,13 @@ BEGIN { @BCVI::Client::ISA = qw( BCVI ); }
 package BCVI::Server;
 
 BEGIN { @BCVI::Server::ISA = qw( BCVI ); }
+
+
+sub dispatch {
+    my($self) = @_;
+
+    die "Listener has run out of ideas";
+}
 
 
 ##############################################################################
@@ -308,6 +330,7 @@ sub init {
         local($/) = undef;
         <DATA>;
     };
+    close(DATA);
 }
 
 
