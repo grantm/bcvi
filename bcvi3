@@ -57,8 +57,8 @@ sub base_init {
     $class->pod_class->init();
 
     $class->register_option(
-        long_form   => 'help',
-        short_form  => '?',
+        name        => 'help',
+        alias       => '?',
         summary     => 'detailed help message',
         description => <<'END_POD'
 Display this documentation.
@@ -66,7 +66,7 @@ END_POD
     );
 
     $class->register_option(
-        long_form   => 'add-aliases',
+        name        => 'add-aliases',
         summary     => 'install bcvi into shell startup files',
         description => <<'END_POD'
 Edit the bash startup script to add (or update) the required command aliases
@@ -75,8 +75,8 @@ END_POD
     );
 
     $class->register_option(
-        long_form   => 'listener',
-        short_form  => 'l',
+        name        => 'listener',
+        alias       => 'l',
         summary     => 'start in listener mode',
         description => <<'END_POD'
 Start a background listener process.  Also generates a new authentication key.
@@ -84,7 +84,7 @@ END_POD
     );
 
     $class->register_option(
-        long_form   => 'install',
+        name        => 'install',
         summary     => 'copy bcvi to named hosts',
         description => <<'END_POD'
 Copy the C<bcvi> script to the C<$HOME/bin> directory on the specified host
@@ -93,7 +93,7 @@ END_POD
     );
 
     $class->register_option(
-        long_form   => 'unpack-term',
+        name        => 'unpack-term',
         summary     => 'unpack the overloaded TERM variable',
         description => <<'END_POD'
 This option is intended for use from a F<.profile> script.  It outputs a
@@ -102,8 +102,8 @@ END_POD
     );
 
     $class->register_option(
-        long_form   => 'wrap-ssh',
-        short_form  => 's',
+        name        => 'wrap-ssh',
+        alias       => 's',
         summary     => 'pass all args after -- to ssh',
         description => <<'END_POD'
 A wrapper around invoking ssh to connect to a specified host.  Ensures the
@@ -113,8 +113,8 @@ END_POD
     );
 
     $class->register_option(
-        long_form   => 'version',
-        short_form  => 'v',
+        name        => 'version',
+        alias       => 'v',
         summary     => 'display bcvi version number',
         description => <<'END_POD'
 When invoking a command use this option to indicate that the arguments are not
@@ -124,8 +124,8 @@ END_POD
     );
 
     $class->register_option(
-        long_form   => 'no-path-xlate',
-        short_form  => 'n',
+        name        => 'no-path-xlate',
+        alias       => 'n',
         summary     => 'skip translation of args from relative to absolute',
         description => <<'END_POD'
 Displays the version number of the bcvi client and if applicable, of the
@@ -134,8 +134,8 @@ END_POD
     );
 
     $class->register_option(
-        long_form   => 'port',
-        short_form  => 'p',
+        name        => 'port',
+        alias       => 'p',
         arg_spec    => '=i',
         arg_name    => '<port>',
         summary     => 'listener port number',
@@ -145,8 +145,8 @@ END_POD
     );
 
     $class->register_option(
-        long_form   => 'command',
-        short_form  => 'c',
+        name        => 'command',
+        alias       => 'c',
         arg_spec    => '=s',
         arg_name    => '<cmnd>',
         summary     => 'listener port number',
@@ -157,8 +157,8 @@ END_POD
     );
 
     $class->register_option(
-        long_form   => 'command',
-        short_form  => 'c',
+        name        => 'command',
+        alias       => 'c',
         arg_spec    => '=s',
         arg_name    => '<cmnd>',
         summary     => 'listener port number',
@@ -175,11 +175,11 @@ END_POD
 sub register_option {
     my $class = shift;
     my $opt   = { @_ };
-    my $key   = $opt->{long_form};
+    my $key   = $opt->{name};
     my($package, $filename, $line) = caller();
     $opt->{provider} = "$package at $filename line $line";
     if(!defined $key or !length $key) {
-        die "Can't register option without 'long_form'";
+        die "Can't register option without 'name'";
     }
     warn "option '$key' already registered by $options{$key}->{provider}\n"
         if $options{$key} && !$opt->{force_override};
@@ -259,9 +259,9 @@ sub getopt_config {
     my @spec;
     $class->each_option(sub {
         my($o) = @_;
-        my $def = $o->{long_form};
-        $def .= "|$o->{short_form}" if defined $o->{short_form};
-        $def .= $o->{arg_spec}      if defined $o->{arg_type};
+        my $def = $o->{name};
+        $def .= "|$o->{alias}" if defined $o->{alias};
+        $def .= $o->{arg_spec} if defined $o->{arg_spec};
         push @spec, $def;
     });
     return @spec
@@ -341,9 +341,9 @@ sub option_summary {
     my @lines;
     BCVI->base_class->each_option(sub {
         my($o)    = @_;
-        my $short = "--$o->{long_form}";
-        $short    .= "|-$o->{short_form}" if $o->{short_form};
-        $short    .= " $o->{arg_name}"    if $o->{arg_name};
+        my $short = "--$o->{name}";
+        $short    .= "|-$o->{alias}"   if $o->{alias};
+        $short    .= " $o->{arg_name}" if $o->{arg_name};
         push @lines, [ $short, $o->{summary} ];
         $w = length($short) if length($short) > $w;
     });
@@ -359,9 +359,9 @@ sub option_detail {
     my @lines = "=over 4\n";
     BCVI->base_class->each_option(sub {
         my($o)    = @_;
-        my $pod = "\n=item B<--$o->{long_form}>";
-        $pod .= " (alias: -$o->{short_form})" if $o->{short_form};
-        $pod .= " $o->{arg_name}"             if $o->{arg_name};
+        my $pod = "\n=item B<--$o->{name}>";
+        $pod .= " (alias: -$o->{alias})" if $o->{alias};
+        $pod .= " $o->{arg_name}"        if $o->{arg_name};
         $pod .= "\n\n$o->{description}\n";
         push @lines, $pod;
     });
