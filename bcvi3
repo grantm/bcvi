@@ -34,7 +34,7 @@ package BCVI;
 
 use Getopt::Long qw(GetOptions);
 
-our(%class_map, @options);
+our(%class_map, %options);
 BEGIN {
     %class_map = (
         base   => 'BCVI',
@@ -136,7 +136,7 @@ END_POD
     $class->register_option(
         long_form   => 'port',
         short_form  => 'p',
-        arg_type    => 'i',
+        arg_spec    => '=i',
         arg_name    => '<port>',
         summary     => 'listener port number',
         description => <<'END_POD'
@@ -147,9 +147,22 @@ END_POD
     $class->register_option(
         long_form   => 'command',
         short_form  => 'c',
-        arg_type    => 's',
+        arg_spec    => '=s',
         arg_name    => '<cmnd>',
         summary     => 'listener port number',
+        description => <<'END_POD'
+Use C<cmnd> as the command to send over the back-channel (default: vi).
+Recognised commands are described in L<COMMANDS> below.
+END_POD
+    );
+
+    $class->register_option(
+        long_form   => 'command',
+        short_form  => 'c',
+        arg_spec    => '=s',
+        arg_name    => '<cmnd>',
+        summary     => 'listener port number',
+        force_override => 1,
         description => <<'END_POD'
 Use C<cmnd> as the command to send over the back-channel (default: vi).
 Recognised commands are described in L<COMMANDS> below.
@@ -162,17 +175,22 @@ END_POD
 sub register_option {
     my $class = shift;
     my $opt   = { @_ };
-    if(!defined $opt->{long_form} or !length $opt->{long_form}) {
+    my $key   = $opt->{long_form};
+    my($package, $filename, $line) = caller();
+    $opt->{provider} = "$package at $filename line $line";
+    if(!defined $key or !length $key) {
         die "Can't register option without 'long_form'";
     }
-    push @options, $opt;
+    warn "option '$key' already registered by $options{$key}->{provider}\n"
+        if $options{$key} && !$opt->{force_override};
+    $options{$key} = $opt;
 }
 
 
 sub each_option {
     my($class, $sub) = @_;
 
-    $sub->($_) foreach sort { $a->{long_form} cmp $b->{long_form} } @options
+    $sub->($options{$_}) foreach sort keys %options;
 }
 
 
@@ -243,7 +261,7 @@ sub getopt_config {
         my($o) = @_;
         my $def = $o->{long_form};
         $def .= "|$o->{short_form}" if defined $o->{short_form};
-        $def .= "=$o->{arg_type}"   if defined $o->{arg_type};
+        $def .= $o->{arg_spec}      if defined $o->{arg_type};
         push @spec, $def;
     });
     return @spec
