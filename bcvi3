@@ -296,6 +296,7 @@ BEGIN { @BCVI::Server::ISA = qw( BCVI ); }
 package BCVI::POD;
 
 use Pod::Text;
+use File::Spec;
 
 my $pod_skeleton;
 
@@ -313,11 +314,12 @@ sub init {
 sub full_pod {
     my($class) = @_;
 
-    my $pod = $pod_skeleton;
+    my $pager = $class->pager();
+    my $pod   = $pod_skeleton;
     $pod =~ s{^=for BCVI_OPTIONS_SUMMARY\s*\n}{ $class->option_summary()}me;
     $pod =~ s{^=for BCVI_OPTIONS\s*\n}{ $class->option_detail()}me;
     my $parser = Pod::Text->new (sentence => 1, width => 78);
-    $parser->output_fh(*STDOUT);
+    $parser->output_fh($pager);
     $parser->parse_string_document($pod);
 }
 
@@ -368,6 +370,21 @@ sub option_detail {
     push @lines, "\n=back\n\n";
 
     return join "\n\n", @lines;
+}
+
+
+sub pager {
+    my @commands = $ENV{PAGER} ? ( $ENV{PAGER} ) : qw(pager less more);
+    foreach my $file (@commands) {
+        foreach my $dir ( File::Spec->path() ) {
+            my $exe_path = File::Spec->catfile($dir, $file);
+            if(-x $exe_path) {
+                open my $fh, '|-', $exe_path or next;
+                return $fh;
+            }
+        }
+    }
+    return \*STDOUT;
 }
 
 
