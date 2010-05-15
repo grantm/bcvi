@@ -86,6 +86,7 @@ END_POD
 
     $class->register_option(
         name        => 'install',
+        arg_name    => '<hosts>',
         dispatch_to => 'install_to_hosts',
         summary     => 'copy bcvi to named hosts and install aliases',
         description => <<'END_POD'
@@ -351,6 +352,12 @@ sub home_directory {
 }
 
 
+sub auth_key_filename {
+    my($self) = @_;
+    return $self->home_directory() . '/.bcvi_listener_key';
+}
+
+
 ##############################################################################
 # The BCVI::Client class implements the command-line UI and the client side
 # of the BCVI protocol.  You can use inheritance to customise the behaviour
@@ -373,6 +380,60 @@ sub show_help {
     my($self) = @_;
 
     $self->pod_class->full_pod();
+}
+
+
+sub wrap_ssh {
+    my($self) = @_;
+
+    my %need_arg = map { $_ => 1} split //, 'bcDeFiLlmOopRS';
+
+    my @orig = @ARGV;
+    my(@args, @hosts);
+    while(@ARGV) {
+        $_ = shift @ARGV;
+        if(/^-(.)(.*)$/) {
+            push @args, $_;
+            push @args, shift @ARGV if $need_arg{$1} && !length($2) && @ARGV;
+        }
+        else {
+            push @args,  $_;
+            push @hosts, $_;
+        }
+    }
+    if(@hosts == 1) {
+        my($target) = @hosts;
+        $target =~ s{^.*\@}{};
+        my $remote_port = $self->opt('port') || $self->default_port();
+        my $local_port  = $self->listener_port();
+        $ENV{TERM} = "$ENV{TERM}\n"
+                     . "BCVI_CONF=${target}:localhost:$remote_port:"
+                     . $self->get_listener_auth_key();
+        unshift @args, "-R $local_port:localhost:$remote_port";
+    }
+    else {
+        warn "bcvi: unable to extract hostname from ssh command line\n";
+        @args = @orig;
+    }
+    system 'ssh', @args;
+}
+
+
+sub listener_port {
+    my($self) = @_;
+
+    return $self->default_port();
+}
+
+
+sub get_listener_auth_key {
+    my($self) = @_;
+
+    my $auth_file = $self->auth_key_filename();
+    my $auth_key = $self->read_file($auth_file)
+        or die "Auth key file does not exist: $auth_file";
+    chomp($auth_key);
+    return $auth_key;
 }
 
 
