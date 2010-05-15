@@ -34,7 +34,7 @@ package BCVI;
 
 use Getopt::Long qw(GetOptions);
 
-our(%class_map, %options);
+our(%class_map, %options, @aliases);
 BEGIN {
     %class_map = (
         base   => 'BCVI',
@@ -54,8 +54,6 @@ sub pod_class    { return $class_map{pod};    }
 sub base_init {
     my($class) = @_;
 
-    $class->pod_class->init();
-
     $class->register_option(
         name        => 'help',
         alias       => '?',
@@ -68,6 +66,7 @@ END_POD
 
     $class->register_option(
         name        => 'add-aliases',
+        dispatch_to => 'add_aliases',
         summary     => 'install bcvi into shell startup files',
         description => <<'END_POD'
 Edit the bash startup script to add (or update) the required command aliases
@@ -87,6 +86,7 @@ END_POD
 
     $class->register_option(
         name        => 'install',
+        dispatch_to => 'install_to_hosts',
         summary     => 'copy bcvi to named hosts and install aliases',
         description => <<'END_POD'
 Copy the C<bcvi> script to the C<$HOME/bin> directory on the specified host
@@ -161,6 +161,15 @@ Recognised commands are described in L<COMMANDS> below.
 END_POD
     );
 
+    $class->register_aliases(
+        'test -n "$(which bcvi)" && eval "$(bcvi --unpack-term)"',
+        'test -n "${BCVI_CONF}"  && alias vi="bcvi"',
+        'test -n "${BCVI_CONF}"  && alias bcp="bcvi -c scpd"',
+        'test -n "${BCVI_CONF}"  && alias bnotify="bcvi -n -c notify"',
+    );
+
+    $class->pod_class->init();
+
 }
 
 
@@ -183,6 +192,22 @@ sub each_option {
     my($class, $sub) = @_;
 
     $sub->($options{$_}) foreach sort keys %options;
+}
+
+
+sub register_aliases {
+    my $class = shift;
+    push @aliases, @_;
+}
+
+
+sub shell_aliases {
+    my($self) = @_;
+
+    return
+        "## START-BCVI\n"
+        . join("\n", map { "  $_" } @aliases)
+        . "\n## END-BCVI\n";
 }
 
 
@@ -298,7 +323,31 @@ sub dispatch_option {
 
 
 sub default_port {
-    return($< * 10 + 9);
+    return $< * 10 + 9;
+}
+
+
+sub default_command {
+    return 'vi';
+}
+
+
+sub read_file {
+    my($self, $path) = @_;
+
+    return unless -e $path;
+    return if -d $path;
+    my $data = do {
+        open my $fh, '<', $path or die "open($path): $!\n";
+        local($/) = undef;
+        <$fh>;
+    };
+    return $data;
+}
+
+
+sub home_directory {
+    return (getpwuid($>))[7];
 }
 
 
@@ -313,20 +362,159 @@ package BCVI::Client;
 BEGIN { @BCVI::Client::ISA = qw( BCVI ); }
 
 
-sub show_help {
-    my($self) = @_;
-
-    if($self->opt('help')) {
-        $self->pod_class->full_pod();
-        exit(1);
-    }
-}
-
-
 sub show_versions {
     my($self) = @_;
 
     print "bcvi client: $BCVI::VERSION\n";
+}
+
+
+sub show_help {
+    my($self) = @_;
+
+    $self->pod_class->full_pod();
+}
+
+
+sub unpack_term {
+    my($self) = @_;
+
+    my @parts = split /\x0D?\x0A/, $ENV{TERM} || '';
+    return unless @parts > 1;
+    print "TERM=$parts[0]\n";
+    shift @parts;
+    foreach (@parts) {
+        print if s{^(\w+)=(.*)$}{export $1="$2"\n};
+    }
+}
+
+
+sub install_to_hosts {
+    my($self) = @_;
+
+    die "You must list one or more target hostnames\n" unless @ARGV;
+
+    $self->install_to_host($_) foreach @ARGV;
+}
+
+
+sub install_to_host {
+    my($self, $host) = @_;
+
+    $self->install_bin_directory($host);
+    $self->install_bcvi_script($host);
+    $self->install_remote_aliases($host);
+}
+
+
+sub install_bin_directory {
+    my($self, $host) = @_;
+
+    if(system("ssh $host test -d ./bin") != 0) {
+        print "Creating bin directory on $host\n";
+        system("ssh $host mkdir ./bin") == 0
+            or die "** mkdir failed on $host";
+    }
+}
+
+
+sub install_bcvi_script {
+    my($self, $host) = @_;
+
+    print "Copying bcvi to remote bin directory on $host\n";
+    my $output = `scp $0 $host:bin/bcvi 2>&1`;
+    if($? != 0) {
+        die "** failed to copy bcvi to remote bin directory on $host\n"
+            . $output;
+    }
+}
+
+
+sub install_remote_aliases {
+    my($self, $host) = @_;
+
+    system("ssh $host bin/bcvi --add-aliases") == 0
+        or die "** failed to install aliases on $host";
+}
+
+
+sub add_aliases {
+    my($self) = @_;
+
+    my $bcvi_commands = $self->shell_aliases();
+
+    $self->update_existing_aliases($bcvi_commands)
+    or $self->aliases_initial_install($bcvi_commands);
+}
+
+
+sub update_existing_aliases {
+    my($self, $bcvi_commands) = @_;
+
+    foreach my $file ( $self->candidate_rc_files() ) {
+        my($script) = $self->read_file($file) or next;
+        if(index($script, $bcvi_commands) > -1) {
+            print "Found bcvi commands in $file\n";
+            return 1;
+        }
+        if($script =~ s{^## START-BCVI.*^## END-BCVI\r?\n}{$bcvi_commands}sm) {
+            open my $fh, '>', $file or die "open($file): $!";
+            print $fh $script;
+            close($fh);
+            print "Updated bcvi commands in $file\n";
+            return 1;
+        }
+        if($script =~ m{^[^#]*\bbcvi\b}m) {
+            print "Adhoc bcvi commands found in $file\n"
+                  . "*** Manual update may be required.            ***\n"
+                  . "*** Consider deleting commands and re-adding. ***\n";
+            return 1;
+        }
+    }
+    return;   # No existing aliases found
+}
+
+
+sub aliases_initial_install {
+    my($self, $bcvi_commands) = @_;
+
+    my $target = $self->preferred_rc_file();
+
+    open my $fh, '>>', $target or die "open(>>$target): $!";
+    print $fh "\n$bcvi_commands\n";
+    close($fh);
+    print "Added bcvi commands to $target\n";
+}
+
+
+sub candidate_rc_files {
+    my($self) = @_;
+    my $home = $self->home_directory();
+    return(
+        "$home/.bashrc_local",
+        "$home/.bashrc",
+        "$home/.bash_profile_local",
+        "$home/.bash_profile",
+        "$home/.profile",
+        "$home/.common-configs/bashrc",
+    );
+}
+
+
+sub preferred_rc_file {
+    my($self) = @_;
+
+    # Add to .bashrc_local if it is referenced from .bashrc
+
+    my $home = $self->home_directory();
+    my $bashrc       = "$home/.bashrc";
+    my $bashrc_local = "$home/.bashrc_local";
+
+    my $script = $self->read_file($bashrc) || '';
+
+    return $script =~ m{/[.]bashrc_local\b}
+           ? $bashrc_local
+           : $bashrc;
 }
 
 
