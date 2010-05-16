@@ -32,7 +32,9 @@ exit;
 
 package BCVI;
 
+use File::Spec;
 use Getopt::Long qw(GetOptions);
+use IO::Socket::INET;
 
 our(%class_map, %options, @aliases);
 BEGIN {
@@ -284,14 +286,14 @@ sub new {
 
 
 sub dispatch {
-    my($self) = @_;
+    my($self, @args) = @_;
 
     if(my $method = $self->dispatch_option) {
         $self->$method();
         exit;
     }
 
-    $self->send_command();
+    $self->send_command(@args);
 }
 
 
@@ -368,11 +370,78 @@ package BCVI::Client;
 
 BEGIN { @BCVI::Client::ISA = qw( BCVI ); }
 
+use Sys::Hostname qw();
+
+
+sub get_connection_details {
+    my($self) = @_;
+
+    if(not $ENV{BCVI_CONF}) {
+        die "The \$BCVI_CONF environment variable has not been set\n";
+    }
+    my($alias, $gateway, $port, $auth_key) = split(/:/, $ENV{BCVI_CONF});
+    $self->{host_alias}      = $alias;
+    $self->{gateway_address} = $gateway;
+    $self->{port}            = $port;
+    $self->{auth_key}        = $auth_key;
+}
+
+
+sub host_alias       { return shift->{host_alias};      }
+sub gateway_address  { return shift->{gateway_address}; }
+sub port             { return shift->{port};            }
+sub auth_key         { return shift->{auth_key};        }
+sub server_version   { return shift->{server_version};  }
+
+
+sub send_command {
+    my($self, @files) = @_;
+
+    @files = map { File::Spec->rel2abs($_) } @files
+        unless $self->opt('no-path-xlate');
+
+    my $command = $self->opt('command') || $self->default_command();
+
+    my $sock = $self->connect_to_listener();
+
+    $sock->write(join "\x0A",
+        "AUTH " . $self->auth_key,
+        $self->host_alias,
+        $command,
+        @files,
+        "\x0A"
+    ) or die "Error sending command through backchannel: $!";
+}
+
+
+sub connect_to_listener {
+    my($self) = @_;
+
+    $self->get_connection_details();
+
+    my $peer = $self->gateway_address . ':' . $self->port;
+    my $sock = IO::Socket::INET->new(
+        PeerAddr => $peer,
+    ) or die "Can't connect to '$peer': $!\n";
+
+    binmode($sock);
+    my $welcome = $sock->getline() or die "No listener?\n";
+    if($welcome =~ /^200 READY \(([\d.]+)\)/) {
+        $self->{server_version} = $1;
+    }
+    $self->{sock} = $sock;
+}
+
 
 sub show_versions {
     my($self) = @_;
 
     print "bcvi client: $BCVI::VERSION\n";
+
+    if($ENV{BCVI_CONF}) {
+        $self->connect_to_listener();
+        print "bcvi server: $BCVI::VERSION\n";
+    }
 }
 
 
@@ -604,7 +673,6 @@ sub start_listener {
 package BCVI::POD;
 
 use Pod::Text;
-use File::Spec;
 
 my $pod_skeleton;
 
