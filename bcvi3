@@ -33,6 +33,7 @@ exit;
 package BCVI;
 
 use File::Spec;
+use File::Path;
 use Getopt::Long qw(GetOptions);
 use IO::Socket::INET;
 
@@ -330,6 +331,11 @@ sub default_port {
 }
 
 
+sub listen_address {
+    return 'localhost';
+};
+
+
 sub default_command {
     return 'vi';
 }
@@ -354,9 +360,17 @@ sub home_directory {
 }
 
 
-sub auth_key_filename {
+sub conf_directory {
     my($self) = @_;
-    return $self->home_directory() . '/.bcvi_listener_key';
+
+    my $conf_dir = File::Spec->catdir($self->home_directory(), '.config', 'bcvi');
+    File::Path::mkpath($conf_dir) unless -d $conf_dir;
+    return $conf_dir;
+}
+
+
+sub auth_key_filename {
+    return File::Spec->catfile(shift->conf_directory(), '/listener_key');
 }
 
 
@@ -405,9 +419,9 @@ sub send_command {
     my $sock = $self->connect_to_listener();
 
     $sock->write(join "\x0A",
-        "AUTH " . $self->auth_key,
-        $self->host_alias,
-        $command,
+        "Auth-Key: "   . $self->auth_key,
+        "Host-Alias: " . $self->host_alias,
+        "Command: "    . $command,
         @files,
         "\x0A"
     ) or die "Error sending command through backchannel: $!";
@@ -657,11 +671,144 @@ package BCVI::Server;
 
 BEGIN { @BCVI::Server::ISA = qw( BCVI ); }
 
+use Digest::MD5  qw(md5_hex);
+use Errno        qw();
+
 
 sub start_listener {
     my($self) = @_;
 
-    die "Listener is not yet implemented\n";
+    $self->kill_current_listener();
+    $self->save_pid();
+    $self->generate_auth_key();
+    $self->create_listener_socket();
+    $self->accept_loop();
+    die "bcvi listener accept loop terminated unexpectedly\n";
+}
+
+
+sub auth_key    { shift->{auth_key}; }
+sub sock        { shift->{sock};     }
+sub client_sock { shift->{client};   }
+sub request     { shift->{request};  }
+
+
+sub kill_current_listener {
+    my($self) = @_;
+
+    my($pid) = $self->read_file($self->pid_file) or return;
+    foreach my $i (1..5) {
+        if(kill 0, $pid) {
+            kill($i > 2 ? 9 : 1, $pid);
+        }
+        elsif($!{ESRCH}) {   # no such process
+            return;
+        }
+        elsif($!{EPERM}) {   # pid file was probably stale
+            return;
+        }
+        sleep 1;
+    }
+}
+
+
+sub save_pid {
+    my($self) = @_;
+
+    my $pid_file = $self->pid_file;
+    open my $fh, '>', $pid_file or die "open(>$pid_file): $!";
+    print $fh "$$\n";
+}
+
+
+sub save_port {
+    my($self, $port) = @_;
+
+    my $port_file = $self->port_file;
+    open my $fh, '>', $port_file or die "open(>$port_file): $!";
+    print $fh "$port\n";
+}
+
+
+sub pid_file {
+    return File::Spec->catfile(shift->conf_directory(), 'listener_pid');
+}
+
+
+sub port_file {
+    return File::Spec->catfile(shift->conf_directory(), 'listener_port');
+}
+
+
+sub generate_auth_key {
+    my($self) = @_;
+
+    my $data = "$self" . $$ . time() . rand();
+    $self->{auth_key} = md5_hex($data);
+
+    my $auth_file = $self->auth_key_filename();
+    open my $fh, '>', $auth_file or die "open(>$auth_file): $!";
+    print $fh $self->{auth_key}, "\n";
+}
+
+
+sub create_listener_socket {
+    my($self) = @_;
+
+    my $port = $self->opt('port') || $self->default_port();
+    $self->save_port($port);
+    my $local_addr = $self->listen_address . ':' .  $port;
+    $self->{sock} = IO::Socket::INET->new(
+        LocalAddr => $local_addr,
+        ReuseAddr => 1,
+        Proto     => 'tcp',
+        Listen    => 5,
+        Blocking  => 1,
+    ) or die "Error creating listener for port '$local_addr': $!";
+}
+
+
+sub accept_loop {
+    my($self) = @_;
+
+    $SIG{CHLD} = 'IGNORE';  # let Perl reap the zombies
+
+    my $sock = $self->sock;
+    while(1) {
+        my $new = $sock->accept();
+        next if $!{EINTR};
+        if(fork()) {  # In parent
+            close $new;
+        }
+        else {        # In child
+            $self->send_welcome($new);
+            $self->collect_headers($new);
+            exit;
+        }
+    }
+}
+
+
+sub send_welcome {
+    my($self, $sock) = @_;
+
+    $sock->write(qq{200 READY ($BCVI::VERSION)\x0A});
+}
+
+
+sub collect_headers {
+    my($self, $sock) = @_;
+
+    my $req = {};
+    while(my($line) = $sock->getline() || '') {
+        chomp($line);
+        last if $line eq '';
+        if(my($name, $value) = $line =~ m{^(\S+)\s*:\s*(.*)$}) {
+            $name =~ s/-/_/;
+            $req->{lc($name)} = $value;
+        }
+    }
+    use Data::Dumper; die Dumper($req);
 }
 
 
