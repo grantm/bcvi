@@ -15,7 +15,32 @@
 use strict;
 use warnings;
 
-$BCVI::VERSION   = '3.00';
+##############################################################################
+# This package implements some common functionality required by both the
+# client and the server.
+#
+# It also serves as the entry-point for the command-line script.
+##############################################################################
+
+package BCVI;
+
+our $VERSION   = '3.00';
+
+use File::Spec;
+use File::Path;
+use Getopt::Long qw(GetOptions);
+use IO::Socket::INET;
+
+my %class_map = (
+    base   => 'BCVI',
+    client => 'BCVI::Client',
+    server => 'BCVI::Server',
+    pod    => 'BCVI::POD',
+);
+
+my $LF = "\x0A";
+
+my(%options, %commands, @aliases);
 
 BCVI->base_init();
 
@@ -25,27 +50,6 @@ BCVI->base_class()->process_command_line();
 
 exit;
 
-##############################################################################
-# This package implements some common functionality required by both the
-# client and the server.
-##############################################################################
-
-package BCVI;
-
-use File::Spec;
-use File::Path;
-use Getopt::Long qw(GetOptions);
-use IO::Socket::INET;
-
-our(%class_map, %options, @aliases);
-BEGIN {
-    %class_map = (
-        base   => 'BCVI',
-        client => 'BCVI::Client',
-        server => 'BCVI::Server',
-        pod    => 'BCVI::POD',
-    );
-}
 
 sub version      { return $BCVI::VERSION;     }
 sub base_class   { return $class_map{base};   }
@@ -165,6 +169,34 @@ Recognised commands are described in L<COMMANDS> below.
 END_POD
     );
 
+
+    $class->register_command(
+        name        => 'vi',
+        description => <<'END_POD'
+Invokes C<gvim> on the remote file - after translating the host+path to
+an scp URI.  This is the default command if no C<--command> option is
+specified.  If multiple filenames are supplied, the first will be opened
+in gvim and you should use C<:n> to load the 'next' file.
+END_POD
+    );
+
+    $class->register_command(
+        name        => 'scpd',
+        description => <<'END_POD'
+Uses C<scp> to copy the specified files to the calling user's F<~/Desktop>.
+END_POD
+    );
+
+    $class->register_command(
+        name        => 'notify',
+        description => <<'END_POD'
+Uses the desktop notification protocol to display a message on the calling
+user's desktop.  Typically used with the C<--no-path-xlate> option so that any
+arguments are passed as a text string rather than a list of filenames.
+END_POD
+    );
+
+
     $class->register_aliases(
         'test -n "$(which bcvi)" && eval "$(bcvi --unpack-term)"',
         'test -n "${BCVI_CONF}"  && alias vi="bcvi"',
@@ -181,14 +213,35 @@ sub register_option {
     my $class = shift;
     my $opt   = { @_ };
     my $key   = $opt->{name};
-    my($package, $filename, $line) = caller();
-    $opt->{provider} = "$package at $filename line $line";
+
     if(!defined $key or !length $key) {
         die "Can't register option without 'name'";
     }
+
+    my($package, $filename, $line) = caller();
+    $opt->{provider} = "$package at $filename line $line";
     warn "option '$key' already registered by $options{$key}->{provider}\n"
         if $options{$key} && !$opt->{force_override};
     $options{$key} = $opt;
+}
+
+
+sub register_command {
+    my $class = shift;
+    my $cmd   = { @_ };
+    my $key   = $cmd->{name};
+
+    if(!defined $key or !length $key) {
+        die "Can't register command without 'name'";
+    }
+
+    $cmd->{dispatch_to} ||= "execute_$key";
+
+    my($package, $filename, $line) = caller();
+    $cmd->{provider} = "$package at $filename line $line";
+    warn "option '$key' already registered by $commands{$key}->{provider}\n"
+        if $commands{$key} && !$cmd->{force_override};
+    $commands{$key} = $cmd;
 }
 
 
@@ -196,6 +249,22 @@ sub each_option {
     my($class, $sub) = @_;
 
     $sub->($options{$_}) foreach sort keys %options;
+}
+
+
+sub each_command {
+    my($class, $sub) = @_;
+
+    $sub->($commands{$_}) foreach sort keys %commands;
+}
+
+
+sub command_handler {
+    my($class, $name) = @_;
+
+    return unless defined $name;
+    my $spec = $commands{$name} or return;
+    return $spec->{dispatch_to};
 }
 
 
@@ -384,8 +453,6 @@ package BCVI::Client;
 
 BEGIN { @BCVI::Client::ISA = qw( BCVI ); }
 
-use Sys::Hostname qw();
-
 
 sub get_connection_details {
     my($self) = @_;
@@ -411,19 +478,34 @@ sub server_version   { return shift->{server_version};  }
 sub send_command {
     my($self, @files) = @_;
 
-    @files = map { File::Spec->rel2abs($_) } @files
-        unless $self->opt('no-path-xlate');
-
     my $command = $self->opt('command') || $self->default_command();
 
     my $sock = $self->connect_to_listener();
 
-    $sock->write(join "\x0A",
-        "Auth-Key: "   . $self->auth_key,
-        "Host-Alias: " . $self->host_alias,
-        "Command: "    . $command,
-        @files,
-        "\x0A"
+    $sock->write(
+        "Auth-Key: "   . $self->auth_key   . $LF .
+        "Host-Alias: " . $self->host_alias . $LF .
+        "Command: "    . $command          . $LF
+    ) or die "Error sending command through backchannel: $!";
+
+    $self->send_body($sock, \@files);
+}
+
+
+sub send_body {
+    my($self, $sock, $files) = @_;
+
+    my $translate_paths = ! $self->opt('no-path-xlate');
+
+    my $body = join '', map {
+        $_ = File::Spec->rel2abs($_) if $translate_paths;
+        "$_$LF";
+    } @$files;
+
+    $sock->write(
+        'Content-Length: ' . length($body) . $LF .
+        $LF .
+        $body
     ) or die "Error sending command through backchannel: $!";
 }
 
@@ -673,6 +755,7 @@ BEGIN { @BCVI::Server::ISA = qw( BCVI ); }
 
 use Digest::MD5  qw(md5_hex);
 use Errno        qw();
+use Encode       qw(decode);
 
 
 sub start_listener {
@@ -687,10 +770,11 @@ sub start_listener {
 }
 
 
-sub auth_key    { shift->{auth_key}; }
-sub sock        { shift->{sock};     }
-sub client_sock { shift->{client};   }
-sub request     { shift->{request};  }
+sub auth_key     { shift->{auth_key}; }
+sub sock         { shift->{sock};     }
+sub client_sock  { shift->{client};   }
+sub request      { shift->{request};  }
+sub calling_host { shift->{request}->{host_alias};  }
 
 
 sub kill_current_listener {
@@ -781,11 +865,32 @@ sub accept_loop {
             close $new;
         }
         else {        # In child
-            $self->send_welcome($new);
-            $self->collect_headers($new);
-            exit;
+            close $sock;
+            $self->dispatch_request($new);
+            exit(0);
         }
     }
+}
+
+
+sub dispatch_request {
+    my($self, $sock) = @_;
+
+    $self->send_welcome($sock);
+    my $req = $self->collect_headers($sock);
+    $self->validate_auth_key($req->{auth_key})
+        or exit(0);
+    my $method = $self->command_handler($req->{command})
+        or exit(0);
+    $self->$method($sock);
+}
+
+
+sub validate_auth_key {
+    my($self, $key) = @_;
+
+    return 1 if $key && $key eq $self->auth_key;
+    return;
 }
 
 
@@ -803,12 +908,81 @@ sub collect_headers {
     while(my($line) = $sock->getline() || '') {
         chomp($line);
         last if $line eq '';
+        $line = decode('utf8', $line);
         if(my($name, $value) = $line =~ m{^(\S+)\s*:\s*(.*)$}) {
             $name =~ s/-/_/;
             $req->{lc($name)} = $value;
         }
     }
-    use Data::Dumper; die Dumper($req);
+    exit(0) if $sock->eof;   # Client disconnected;
+    $self->{request} = $req;
+}
+
+
+sub read_request_body {
+    my($self, $sock) = @_;
+
+    my $bytes = $self->request->{content_length};
+
+    my $buf = '';
+    while(my $count = $sock->read($buf, $bytes, length($buf))) {
+        $bytes -= $count;
+        last if $bytes < 1;
+    }
+    return $buf;
+}
+
+
+sub get_filenames {
+    my($self, $sock) = @_;
+
+    return split /\x0a/, decode('utf8', $self->read_request_body($sock));
+}
+
+
+sub execute_vi {
+    my($self, $sock) = @_;
+
+    my $alias = $self->calling_host();
+    my @files = map { "scp://$alias/$_" } $self->get_filenames($sock);
+    system('gvim', '--', @files);
+}
+
+
+sub execute_scpd {
+    my($self, $sock) = @_;
+
+    my $dest = File::Spec->catdir($self->home_directory(), 'Desktop');
+
+    my $alias = $self->calling_host();
+    my @files = map { "$alias:$_" } $self->get_filenames($sock);
+
+    system('scp', '-q', '--', @files, $dest);
+}
+
+
+sub execute_notify {
+    my($self, $sock) = @_;
+
+    my $title = "Notification from " . $self->calling_host();
+
+    my $message = decode('utf8', $self->read_request_body($sock));
+
+    eval { require Desktop::Notify; };
+    if($@) {
+        warn "Desktop::Notify is not installed.\n\n$title:\n$message\n\n";
+        return;
+    }
+
+    my $notify = Desktop::Notify->new();
+
+    my $notification = $notify->create(
+        summary => $title,
+        body    => $message,
+        timeout => 10000,
+    );
+
+    $notification->show();
 }
 
 
@@ -841,7 +1015,8 @@ sub full_pod {
     my $pager = $class->pager();
     my $pod   = $pod_skeleton;
     $pod =~ s{^=for BCVI_OPTIONS_SUMMARY\s*\n}{ $class->option_summary()}me;
-    $pod =~ s{^=for BCVI_OPTIONS\s*\n}{ $class->option_detail()}me;
+    $pod =~ s{^=for BCVI_OPTIONS\s*\n}{ $class->option_detail() }me;
+    $pod =~ s{^=for BCVI_COMMANDS\s*\n}{ $class->command_detail() }me;
     my $parser = Pod::Text->new (sentence => 1, width => 78);
     $parser->output_fh($pager);
     $parser->parse_string_document($pod);
@@ -863,7 +1038,7 @@ sub synopsis {
 sub option_summary {
     my($class) = @_;
 
-    my $w   = 12;
+    my $w = 12;
     my @lines;
     BCVI->base_class->each_option(sub {
         my($o)    = @_;
@@ -881,10 +1056,9 @@ sub option_summary {
 sub option_detail {
     my($class) = @_;
 
-    my $w   = 12;
     my @lines = "=over 4\n";
     BCVI->base_class->each_option(sub {
-        my($o)    = @_;
+        my($o)  = @_;
         my $pod = "\n=item B<--$o->{name}>";
         $pod .= " (alias: -$o->{alias})" if $o->{alias};
         $pod .= " $o->{arg_name}"        if $o->{arg_name};
@@ -893,7 +1067,23 @@ sub option_detail {
     });
     push @lines, "\n=back\n\n";
 
-    return join "\n\n", @lines;
+    return join '', @lines;
+}
+
+
+sub command_detail {
+    my($class) = @_;
+
+    my @lines = "=over 4\n";
+    BCVI->base_class->each_command(sub {
+        my($c)  = @_;
+        my $pod = "\n=item B<$c->{name}>";
+        $pod .= "\n\n$c->{description}\n";
+        push @lines, $pod;
+    });
+    push @lines, "\n=back\n\n";
+
+    return join '', @lines;
 }
 
 
@@ -953,6 +1143,12 @@ machine, but editing a file on the remote machine
 =head1 OPTIONS
 
 =for BCVI_OPTIONS
+
+=head1 COMMANDS
+
+The following commands can be passed back to the listener process.
+
+=for BCVI_COMMANDS
 
 =head1 USING BCVI
 
