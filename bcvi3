@@ -439,7 +439,12 @@ sub conf_directory {
 
 
 sub auth_key_filename {
-    return File::Spec->catfile(shift->conf_directory(), '/listener_key');
+    return File::Spec->catfile(shift->conf_directory(), 'listener_key');
+}
+
+
+sub listener_port_filename {
+    return File::Spec->catfile(shift->conf_directory(), 'listener_port');
 }
 
 
@@ -574,7 +579,7 @@ sub wrap_ssh {
         $ENV{TERM} = "$ENV{TERM}\n"
                      . "BCVI_CONF=${target}:localhost:$remote_port:"
                      . $self->get_listener_auth_key();
-        unshift @args, "-R $local_port:localhost:$remote_port";
+        unshift @args, "-R $remote_port:localhost:$local_port";
     }
     else {
         warn "bcvi: unable to extract hostname from ssh command line\n";
@@ -587,7 +592,10 @@ sub wrap_ssh {
 sub listener_port {
     my($self) = @_;
 
-    return $self->default_port();
+    my $port = $self->read_file($self->listener_port_filename())
+        or return $self->default_port();
+    chomp($port);
+    return $port;
 }
 
 
@@ -808,7 +816,7 @@ sub save_pid {
 sub save_port {
     my($self, $port) = @_;
 
-    my $port_file = $self->port_file;
+    my $port_file = $self->listener_port_filename;
     open my $fh, '>', $port_file or die "open(>$port_file): $!";
     print $fh "$port\n";
 }
@@ -816,11 +824,6 @@ sub save_port {
 
 sub pid_file {
     return File::Spec->catfile(shift->conf_directory(), 'listener_pid');
-}
-
-
-sub port_file {
-    return File::Spec->catfile(shift->conf_directory(), 'listener_port');
 }
 
 
@@ -890,6 +893,8 @@ sub validate_auth_key {
     my($self, $key) = @_;
 
     return 1 if $key && $key eq $self->auth_key;
+    my $alias = $self->calling_host();
+    warn "Invalid Auth-Key in request from $alias\n" if -t 2;
     return;
 }
 
