@@ -9,7 +9,7 @@
 #
 # Use 'bcvi --help' for the documentation
 #
-# Copyright (c) 2007-2010 Grant McLean <grantm@cpan.org.nz>
+# Copyright (c) 2007-2010 Grant McLean <grantm@cpan.org>
 #
 
 use strict;
