@@ -151,9 +151,13 @@ END_POD
         alias       => 'p',
         arg_spec    => '=i',
         arg_name    => '<port>',
-        summary     => 'listener port number',
+        summary     => 'port number for listener/port-forward',
         description => <<'END_POD'
-Port number to listen on (default is user_id * 10 + 9).
+When used with C<--listener>, this is the port the server process will listen
+on.  When used with C<--wrap-ssh> this is the port number on the remote machine
+that will be forwarded back to the listener process.  The default in both cases
+is calculated using the user's numeric UID multiplied by 10 and added to 9.
+The intent is to reduce the chance of collisions with other bcvi users.
 END_POD
     );
 
@@ -407,7 +411,7 @@ sub dispatch_option {
 
 
 sub default_port {
-    return $< * 10 + 9;
+    return( ($< * 10 + 9) % 65536 );
 }
 
 
