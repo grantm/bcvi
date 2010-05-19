@@ -169,6 +169,17 @@ Recognised commands are described in L<COMMANDS> below.
 END_POD
     );
 
+    $class->register_option(
+        name        => 'reuse-auth',
+        summary     => "don't generate a new auth key on listener startup",
+        description => <<'END_POD'
+A new (random) authorisation key is generated when the listener process is
+started - this will invalidate the keys in use by existing SSH sessions.
+This option is for use when it is necessary to restart the listener process
+without invalidating client keys.
+END_POD
+    );
+
 
     $class->register_command(
         name        => 'vi',
@@ -448,6 +459,17 @@ sub listener_port_filename {
 }
 
 
+sub get_listener_auth_key {
+    my($self) = @_;
+
+    my $auth_file = $self->auth_key_filename();
+    my $auth_key = $self->read_file($auth_file)
+        or die "Auth key file does not exist: $auth_file";
+    chomp($auth_key);
+    return $auth_key;
+}
+
+
 ##############################################################################
 # The BCVI::Client class implements the command-line UI and the client side
 # of the BCVI protocol.  You can use inheritance to customise the behaviour
@@ -596,17 +618,6 @@ sub listener_port {
         or return $self->default_port();
     chomp($port);
     return $port;
-}
-
-
-sub get_listener_auth_key {
-    my($self) = @_;
-
-    my $auth_file = $self->auth_key_filename();
-    my $auth_key = $self->read_file($auth_file)
-        or die "Auth key file does not exist: $auth_file";
-    chomp($auth_key);
-    return $auth_key;
 }
 
 
@@ -829,6 +840,11 @@ sub pid_file {
 
 sub generate_auth_key {
     my($self) = @_;
+
+    if($self->opt('reuse-auth')) {
+        $self->{auth_key} = $self->get_listener_auth_key();
+        return;
+    }
 
     my $data = "$self" . $$ . time() . rand();
     $self->{auth_key} = md5_hex($data);
