@@ -40,7 +40,7 @@ my %class_map = (
 
 my $LF = "\x0A";
 
-my(%options, %option_name, %commands, @aliases);
+my(%options, %option_name, %commands, @aliases, @plugins);
 
 BCVI->base_init();
 
@@ -353,6 +353,7 @@ sub hook_client_class {
 
     no strict 'refs';
     unshift @{"${calling_class}::ISA"}, $client_class;
+    push @plugins, { class => $calling_class, file => $calling_file };
     return 1;
 }
 
@@ -366,6 +367,7 @@ sub hook_server_class {
 
     no strict 'refs';
     unshift @{"${calling_class}::ISA"}, $server_class;
+    push @plugins, { class => $calling_class, file => $calling_file };
     return 1;
 }
 
