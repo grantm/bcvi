@@ -40,7 +40,7 @@ my %class_map = (
 
 my $LF = "\x0A";
 
-my(%options, %option_name, %commands, @aliases, @plugins);
+my(%options, %option_name, %commands, @aliases, %plugin_loaded, @plugins);
 
 BCVI->base_init();
 
@@ -337,10 +337,16 @@ sub plugin_dirs {
 sub load_plugin_file {
     my($class, $file) = @_;
 
+    my @parts = File::Spec->splitdir($file);
+    my $key = pop @parts;
+    return if $plugin_loaded{$key};
+
     eval { require $file; };
     if($@) {
         die qq{Error loading plugin "$file"\n$@\n}
     }
+
+    $plugin_loaded{$key} = 1;
 }
 
 
