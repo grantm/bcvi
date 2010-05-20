@@ -28,7 +28,7 @@ our $VERSION   = '3.00';
 
 use File::Spec;
 use File::Path;
-use Getopt::Long qw(GetOptions);
+use Getopt::Long qw(GetOptionsFromArray);
 use IO::Socket::INET;
 
 my %class_map = (
@@ -46,7 +46,7 @@ BCVI->base_init();
 
 BCVI->load_plugins();
 
-BCVI->base_class()->process_command_line();
+BCVI->base_class()->process_command_line(@ARGV);
 
 exit;
 
@@ -379,18 +379,18 @@ sub hook_server_class {
 
 
 sub process_command_line {
-    my $class = shift;
+    my($class, @args) = @_;
 
     my $opt = $class->option_defaults();
     my @cfg = $class->getopt_config();
 
-    GetOptions($opt, @cfg) or $class->die_synopsis();
+    GetOptionsFromArray(\@args, $opt, @cfg) or $class->die_synopsis();
 
     my $handler = $opt->{listener}
                 ? $class->server_class
                 : $class->client_class;
 
-    $handler->new(_options => $opt)->dispatch(@main::ARGV);
+    $handler->new(_options => $opt)->dispatch(@args);
 }
 
 
@@ -434,7 +434,7 @@ sub dispatch {
     my($self, @args) = @_;
 
     if(my $method = $self->dispatch_option) {
-        $self->$method();
+        $self->$method(@args);
         exit;
     }
     elsif(!$self->opt('command') and !@args) {
@@ -643,21 +643,22 @@ sub show_help {
 
 
 sub wrap_ssh {
-    my($self) = @_;
+    my($self, @args_in) = @_;
 
     my %need_arg = map { $_ => 1} split //, 'bcDeFiLlmOopRS';
 
-    my @orig = @ARGV;
-    my(@args, @hosts);
-    while(@ARGV) {
-        $_ = shift @ARGV;
+    my @orig = @args_in;
+    my(@args_out, @hosts);
+    while(@args_in) {
+        $_ = shift @args_in;
         if(/^-(.)(.*)$/) {
-            push @args, $_;
-            push @args, shift @ARGV if $need_arg{$1} && !length($2) && @ARGV;
+            push @args_out, $_;
+            push @args_out, shift @args_in
+                if $need_arg{$1} && !length($2) && @args_in;
         }
         else {
-            push @args,  $_;
-            push @hosts, $_;
+            push @args_out, $_;
+            push @hosts,    $_;
         }
     }
     if(@hosts == 1) {
@@ -668,13 +669,13 @@ sub wrap_ssh {
         $ENV{TERM} = "$ENV{TERM}\n"
                      . "BCVI_CONF=${target}:localhost:$remote_port:"
                      . $self->get_listener_auth_key();
-        unshift @args, "-R $remote_port:localhost:$local_port";
+        unshift @args_out, "-R $remote_port:localhost:$local_port";
     }
     else {
         warn "bcvi: unable to extract hostname from ssh command line\n";
-        @args = @orig;
+        @args_out = @orig;
     }
-    system 'ssh', @args;
+    system 'ssh', @args_out;
 }
 
 
@@ -702,11 +703,11 @@ sub unpack_term {
 
 
 sub install_to_hosts {
-    my($self) = @_;
+    my($self, @args) = @_;
 
-    die "You must list one or more target hostnames\n" unless @ARGV;
+    die "You must list one or more target hostnames\n" unless @args;
 
-    $self->install_to_host($_) foreach @ARGV;
+    $self->install_to_host($_) foreach @args;
 }
 
 
