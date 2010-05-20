@@ -56,6 +56,7 @@ sub base_class   { return $class_map{base};   }
 sub client_class { return $class_map{client}; }
 sub server_class { return $class_map{server}; }
 sub pod_class    { return $class_map{pod};    }
+sub map_class    { $class_map{$_[1]} = $_[2]; }
 
 
 sub base_init {
@@ -313,21 +314,59 @@ sub shell_aliases {
 
 
 sub load_plugins {
-    return;
+    my($class) = @_;
+
+    foreach my $dir ($class->plugin_dirs) {
+        foreach my $file (sort glob("$dir/*.pm")) {
+            $class->load_plugin_file($file);
+        }
+    }
+}
+
+
+sub plugin_dirs {
+    my($class) = @_;
+
+    return(
+        $class->conf_directory(),
+        grep -d $_, map { File::Spec->catdir($_, 'App', 'BCVI') } @INC,
+    );
+}
+
+
+sub load_plugin_file {
+    my($class, $file) = @_;
+
+    eval { require $file; };
+    if($@) {
+        die qq{Error loading plugin "$file"\n$@\n}
+    }
 }
 
 
 sub hook_client_class {
-    # determine calling package
-    # adjust inheritance chain
-    # set $BCVI::class_map{client};
+    my($class) = @_;
+
+    my($calling_class, $calling_file) = caller();
+    my $client_class = $class->client_class();
+    $class->map_class(client => $calling_class);
+
+    no strict 'refs';
+    unshift @{"${calling_class}::ISA"}, $client_class;
+    return 1;
 }
 
 
 sub hook_server_class {
-    # determine calling package
-    # adjust inheritance chain
-    # set $BCVI::class_map{server};
+    my($class) = @_;
+
+    my($calling_class, $calling_file) = caller();
+    my $server_class = $class->server_class();
+    $class->map_class(server => $calling_class);
+
+    no strict 'refs';
+    unshift @{"${calling_class}::ISA"}, $server_class;
+    return 1;
 }
 
 
