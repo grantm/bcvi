@@ -40,7 +40,7 @@ my %class_map = (
 
 my $LF = "\x0A";
 
-my(%options, %commands, @aliases);
+my(%options, %option_name, %commands, @aliases);
 
 BCVI->base_init();
 
@@ -235,8 +235,21 @@ sub register_option {
 
     my($package, $filename, $line) = caller();
     $opt->{provider} = "$package at $filename line $line";
-    warn "option '$key' already registered by $options{$key}->{provider}\n"
-        if $options{$key} && !$opt->{force_override};
+    my $taken = $options{$key};
+    if($taken && !$opt->{force_override}) {
+        warn "option '--$key' already registered by $taken->{provider}\n";
+    }
+    if($opt->{alias}) {
+        foreach my $a (map { s/^-+//; $_ } split /\|/, $opt->{alias}) {
+            if($option_name{$a} && !$opt->{force_override}) {
+                if($taken = $options{$option_name{$a}}) {
+                    warn "alias '$a' already registered for option "
+                       . "'--$taken->{name}' by $taken->{provider}\n";
+                }
+            }
+            $option_name{$a} = $key;
+        }
+    }
     $options{$key} = $opt;
 }
 
