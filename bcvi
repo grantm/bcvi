@@ -377,6 +377,9 @@ sub dispatch {
         $self->$method();
         exit;
     }
+    elsif(!$self->opt('command') and !@args) {
+        $self->die_synopsis();
+    }
 
     $self->send_command(@args);
 }
