@@ -994,6 +994,7 @@ sub dispatch_request {
     my $method = $self->command_handler($req->{command})
         or $self->exit_response($sock, 910);
     $self->$method($sock);
+    $self->send_response($sock, 200);
 }
 
 
