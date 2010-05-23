@@ -47,7 +47,10 @@ my %response_message = (
 
 my $LF = "\x0A";
 
-my(%options, %option_name, %commands, @aliases, %plugin_loaded, @plugins);
+my(
+    %options, %option_name, %commands, @aliases, @installables,
+    %plugin_loaded, @plugins,
+);
 
 BCVI->base_init();
 
@@ -65,6 +68,7 @@ sub server_class { return $class_map{server}; }
 sub pod_class    { return $class_map{pod};    }
 sub map_class    { $class_map{$_[1]} = $_[2]; }
 
+sub installable_files { return @installables;     }
 sub message_from_code { $response_message{$_[1]}; }
 
 sub base_init {
@@ -310,6 +314,13 @@ sub command_handler {
 sub register_aliases {
     my $class = shift;
     push @aliases, @_;
+}
+
+
+sub register_installable {
+    my $class = shift;
+    my($package, $filename, $line) = caller();
+    push @installables, $filename;
 }
 
 
@@ -742,6 +753,7 @@ sub install_to_host {
 
     $self->install_bin_directory($host);
     $self->install_bcvi_script($host);
+    $self->install_plugins($host);
     $self->install_remote_aliases($host);
 }
 
@@ -764,6 +776,24 @@ sub install_bcvi_script {
     my $output = `scp $0 $host:bin/bcvi 2>&1`;
     if($? != 0) {
         die "** failed to copy bcvi to remote bin directory on $host\n"
+            . $output;
+    }
+}
+
+
+sub install_plugins {
+    my($self, $host) = @_;
+
+    return unless @installables;
+    if(system("ssh $host test -d ./.config/bcvi") != 0) {
+        print "Creating plugins directory on $host\n";
+        system("ssh $host mkdir ./.config/bcvi") == 0
+            or die "** mkdir failed on $host";
+    }
+    print "Copying plugin files to $host\n";
+    my $output = `scp @installables $host:.config/bcvi 2>&1`;
+    if($? != 0) {
+        die "** failed to copy bcvi to remote plugins directory on $host\n"
             . $output;
     }
 }
