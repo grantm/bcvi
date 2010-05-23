@@ -205,6 +205,17 @@ END_POD
     );
 
     $class->register_command(
+        name        => 'viwait',
+        description => <<'END_POD'
+This command works exactly the same as C<vi> above, except it waits for the
+editor process to exit before bcvi exits on the remote machine.  This is
+primarily for use with C<sudoedit>.  Note: when used with C<sudoedit>, the file
+will not be updated on the remote machine until you exit the editor on your
+workstation.
+END_POD
+    );
+
+    $class->register_command(
         name        => 'scpd',
         description => <<'END_POD'
 Uses C<scp> to copy the specified files to the calling user's F<~/Desktop>.
@@ -224,6 +235,7 @@ END_POD
     $class->register_aliases(
         'test -n "$(which bcvi)" && eval "$(bcvi --unpack-term)"',
         'test -n "${BCVI_CONF}"  && alias vi="bcvi"',
+        'test -n "${BCVI_CONF}"  && alias suvi="EDITOR=\'bcvi -c viwait\' sudoedit"',
         'test -n "${BCVI_CONF}"  && alias bcp="bcvi -c scpd"',
         'test -n "${BCVI_CONF}"  && alias bnotify="bcvi -n -c notify"',
     );
@@ -1070,6 +1082,15 @@ sub execute_vi {
     my $alias = $self->calling_host();
     my @files = map { "scp://$alias/$_" } $self->get_filenames($sock);
     system('gvim', '--', @files);
+}
+
+
+sub execute_viwait {
+    my($self, $sock) = @_;
+
+    my $alias = $self->calling_host();
+    my @files = map { "scp://$alias/$_" } $self->get_filenames($sock);
+    system('gvim', '-f', '--', @files);
 }
 
 
