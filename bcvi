@@ -1242,7 +1242,7 @@ bcvi - Back-channel vi, proxy commands back over ssh
 
 =head1 DESCRIPTION
 
-This utility works with SSH to allow commands run on the SSH server to be
+This utility works with SSH to allow commands issued on the SSH server to be
 'proxied' back to the SSH client machine.  For example:
 
 =over 4
