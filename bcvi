@@ -29,6 +29,7 @@ our $VERSION   = '3.00';
 use File::Spec;
 use File::Path;
 use Getopt::Long qw(GetOptionsFromArray);
+use Encode       qw(encode decode);
 use IO::Socket::INET;
 
 my %class_map = (
@@ -41,6 +42,7 @@ my %class_map = (
 my %response_message = (
     100 => "Ready ($BCVI::VERSION)",
     200 => "Success",
+    300 => "Response follows",
     900 => "Permission denied",
     910 => "Unrecognised command",
 );
@@ -306,6 +308,7 @@ sub command_handler {
     my($class, $name) = @_;
 
     return unless defined $name;
+    return "execute_commands_pod" if $name eq 'commands_pod';
     my $spec = $commands{$name} or return;
     return $spec->{dispatch_to};
 }
@@ -473,6 +476,13 @@ sub opt {
 }
 
 
+sub set_opt {
+    my($self, $key, $value) = @_;
+
+    return $self->{_options}->{$key} = $value;
+}
+
+
 sub dispatch_option {
     my($self) = @_;
 
@@ -590,6 +600,7 @@ sub auth_key         { return shift->{auth_key};         }
 sub server_version   { return shift->{server_version};   }
 sub response_code    { return shift->{response_code};    }
 sub response_message { return shift->{response_message}; }
+sub response         { return shift->{response};         }
 
 
 sub send_command {
@@ -606,7 +617,7 @@ sub send_command {
     ) or die "Error sending command through backchannel: $!";
 
     $self->send_body($sock, \@files);
-    return if $self->check_response($sock) eq '200';
+    return if $self->check_response($sock) =~ /^(?:200|300)$/;
     die $self->response_message . "\n";
 }
 
@@ -635,9 +646,36 @@ sub check_response {
     my $response = $sock->getline() or die "Server hung up\n";
     if(my($code, $message) = $response =~ m{^(\d\d\d) (.*)$}) {
         ($self->{response_code}, $self->{response_message}) = ($code, $message);
+        $self->read_response($sock) if $code eq '300';
         return $code;
     }
     die "Unexpected response: '$response'\n";
+}
+
+
+sub read_response {
+    my($self, $sock) = @_;
+
+    my $resp = {};
+    while(my($line) = $sock->getline() || '') {
+        chomp($line);
+        last if $line eq '';
+        $line = Encode::decode('utf8', $line);
+        if(my($name, $value) = $line =~ m{^(\S+)\s*:\s*(.*)$}) {
+            $name =~ s/-/_/;
+            $resp->{lc($name)} = $value;
+        }
+    }
+    $self->{response} = $resp;
+
+    my $bytes = $resp->{content_length} || return;;
+
+    my $buf = '';
+    while(my $count = $sock->read($buf, $bytes, length($buf))) {
+        $bytes -= $count;
+        last if $bytes < 1;
+    }
+    $resp->{body} = $buf;
 }
 
 
@@ -675,7 +713,22 @@ sub show_versions {
 sub show_help {
     my($self) = @_;
 
-    $self->pod_class->full_pod();
+    $self->pod_class->full_pod($self);
+}
+
+
+sub commands_pod {
+    my($self) = @_;
+
+    eval {
+        $self->set_opt(command => 'commands_pod');
+        $self->send_command();
+    };
+    if($@) {
+        $@ = '';
+        return;
+    }
+    return $self->response->{body};
 }
 
 
@@ -898,7 +951,6 @@ BEGIN { @BCVI::Server::ISA = qw( BCVI ); }
 
 use Digest::MD5  qw(md5_hex);
 use Errno        qw();
-use Encode       qw(encode decode);
 
 
 sub start_listener {
@@ -1044,7 +1096,7 @@ sub send_response {
     my($self, $sock, $code) = @_;
 
     my $message = $self->message_from_code($code) || 'Invalid response code';
-    $message = encode('utf8', $message);
+    $message = Encode::encode('utf8', $message);
     $sock->write(qq{$code $message\x0A});
 }
 
@@ -1064,13 +1116,12 @@ sub collect_headers {
     while(my($line) = $sock->getline() || '') {
         chomp($line);
         last if $line eq '';
-        $line = decode('utf8', $line);
+        $line = Encode::decode('utf8', $line);
         if(my($name, $value) = $line =~ m{^(\S+)\s*:\s*(.*)$}) {
             $name =~ s/-/_/;
             $req->{lc($name)} = $value;
         }
     }
-    exit(0) if $sock->eof;   # Client disconnected;
     $self->{request} = $req;
 }
 
@@ -1092,7 +1143,22 @@ sub read_request_body {
 sub get_filenames {
     my($self, $sock) = @_;
 
-    return split /\x0a/, decode('utf8', $self->read_request_body($sock));
+    return split /\x0a/, Encode::decode('utf8', $self->read_request_body($sock));
+}
+
+
+sub execute_commands_pod {
+    my($self, $sock) = @_;
+
+    $self->send_response($sock, 300);
+    my $pod = $self->pod_class->command_detail();
+    $pod = Encode::encode('utf8', $pod);
+    $sock->write(
+        'Content-Type: text/pod'          . $LF .
+        'Content-Length: ' . length($pod) . $LF .
+        $LF .
+        $pod
+    ) or die "Error sending response body: $!";
 }
 
 
@@ -1150,13 +1216,19 @@ sub init {
 
 
 sub full_pod {
-    my($class) = @_;
+    my($class, $app) = @_;
+
+    my $commands_pod;
+    if($app && $app->can('commands_pod')) {
+        $commands_pod = $app->commands_pod();
+    }
+    $commands_pod ||= $class->command_detail();
 
     my $pager = $class->pager();
     my $pod   = $pod_skeleton;
     $pod =~ s{^=for BCVI_OPTIONS_SUMMARY\s*\n}{ $class->option_summary()}me;
     $pod =~ s{^=for BCVI_OPTIONS\s*\n}{ $class->option_detail() }me;
-    $pod =~ s{^=for BCVI_COMMANDS\s*\n}{ $class->command_detail() }me;
+    $pod =~ s{^=for BCVI_COMMANDS\s*\n}{ $commands_pod }me;
     my $parser = Pod::Text->new (sentence => 1, width => 78);
     $parser->output_fh($pager);
     $parser->parse_string_document($pod);
