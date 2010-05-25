@@ -24,7 +24,7 @@ require 5.008;
 # It also serves as the entry-point for the command-line script.
 ##############################################################################
 
-package BCVI;
+package App::BCVI;
 
 our $VERSION   = '3.00';
 
@@ -35,14 +35,14 @@ use Encode       qw(encode decode);
 use IO::Socket::INET;
 
 my %class_map = (
-    base   => 'BCVI',
-    client => 'BCVI::Client',
-    server => 'BCVI::Server',
-    pod    => 'BCVI::POD',
+    base   => 'App::BCVI',
+    client => 'App::BCVI::Client',
+    server => 'App::BCVI::Server',
+    pod    => 'App::BCVI::POD',
 );
 
 my %response_message = (
-    100 => "Ready ($BCVI::VERSION)",
+    100 => "Ready ($App::BCVI::VERSION)",
     200 => "Success",
     300 => "Response follows",
     900 => "Permission denied",
@@ -56,21 +56,21 @@ my(
     %plugin_loaded, @plugins,
 );
 
-BCVI->base_init();
+App::BCVI->base_init();
 
-BCVI->load_plugins();
+App::BCVI->load_plugins();
 
-BCVI->base_class()->process_command_line(@ARGV);
+App::BCVI->base_class()->process_command_line(@ARGV);
 
 exit;
 
 
-sub version      { return $BCVI::VERSION;     }
-sub base_class   { return $class_map{base};   }
-sub client_class { return $class_map{client}; }
-sub server_class { return $class_map{server}; }
-sub pod_class    { return $class_map{pod};    }
-sub map_class    { $class_map{$_[1]} = $_[2]; }
+sub version      { return $App::BCVI::VERSION; }
+sub base_class   { return $class_map{base};    }
+sub client_class { return $class_map{client};  }
+sub server_class { return $class_map{server};  }
+sub pod_class    { return $class_map{pod};     }
+sub map_class    { $class_map{$_[1]} = $_[2];  }
 
 sub installable_files { return @installables;     }
 sub message_from_code { $response_message{$_[1]}; }
@@ -94,7 +94,7 @@ END_POD
         summary     => 'install bcvi into shell startup files',
         description => <<'END_POD'
 Edit the bash startup script to add (or update) the required command aliases
-for bcvi
+for bcvi.
 END_POD
     );
 
@@ -572,14 +572,14 @@ sub get_listener_auth_key {
 
 
 ##############################################################################
-# The BCVI::Client class implements the command-line UI and the client side
-# of the BCVI protocol.  You can use inheritance to customise the behaviour
-# of this class.
+# The App::BCVI::Client class implements the command-line UI and the client
+# side of the BCVI protocol.  You can use inheritance to customise the
+# behaviour of this class.
 ##############################################################################
 
-package BCVI::Client;
+package App::BCVI::Client;
 
-BEGIN { @BCVI::Client::ISA = qw( BCVI ); }
+BEGIN { @App::BCVI::Client::ISA = qw( App::BCVI ); }
 
 
 sub get_connection_details {
@@ -704,11 +704,11 @@ sub connect_to_listener {
 sub show_versions {
     my($self) = @_;
 
-    print "bcvi client: $BCVI::VERSION\n";
+    print "bcvi client: $App::BCVI::VERSION\n";
 
     if($ENV{BCVI_CONF}) {
         $self->connect_to_listener();
-        print "bcvi server: $BCVI::VERSION\n";
+        print "bcvi server: $App::BCVI::VERSION\n";
     }
 }
 
@@ -944,13 +944,14 @@ sub preferred_rc_file {
 
 
 ##############################################################################
-# The BCVI::Server class implements the server ('listener') side of the BCVI
-# protocol.  You can use inheritance to customise the behaviour of this class.
+# The App::BCVI::Server class implements the server ('listener') side of the
+# BCVI protocol.  You can use inheritance to customise the behaviour of this
+# class.
 ##############################################################################
 
-package BCVI::Server;
+package App::BCVI::Server;
 
-BEGIN { @BCVI::Server::ISA = qw( BCVI ); }
+BEGIN { @App::BCVI::Server::ISA = qw( App::BCVI ); }
 
 use Digest::MD5  qw(md5_hex);
 use Errno        qw();
@@ -1196,11 +1197,11 @@ sub execute_scpd {
 
 
 ##############################################################################
-# The BCVI::POD class implements POD extraction and formatting on platforms
-# where POD::Text is available.
+# The App::BCVI::POD class implements POD extraction and formatting on
+# platforms where POD::Text is available.
 ##############################################################################
 
-package BCVI::POD;
+package App::BCVI::POD;
 
 use Pod::Text;
 
@@ -1262,7 +1263,7 @@ sub option_summary {
 
     my $w = 12;
     my @lines;
-    BCVI->base_class->each_option(sub {
+    App::BCVI->base_class->each_option(sub {
         my($o)    = @_;
         my $short = "--$o->{name}";
         $short    .= "|-$o->{alias}"   if $o->{alias};
@@ -1279,7 +1280,7 @@ sub option_detail {
     my($class) = @_;
 
     my @lines = "=over 4\n";
-    BCVI->base_class->each_option(sub {
+    App::BCVI->base_class->each_option(sub {
         my($o)  = @_;
         my $pod = "\n=item B<--$o->{name}>";
         $pod .= " (alias: -$o->{alias})" if $o->{alias};
@@ -1297,7 +1298,7 @@ sub command_detail {
     my($class) = @_;
 
     my @lines = "=over 4\n";
-    BCVI->base_class->each_command(sub {
+    App::BCVI->base_class->each_command(sub {
         my($c)  = @_;
         my $pod = "\n=item B<$c->{name}>";
         $pod .= "\n\n$c->{description}\n";
