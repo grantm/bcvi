@@ -843,7 +843,7 @@ sub install_plugins {
     return unless @installables;
     if(system("ssh $host test -d ./.config/bcvi") != 0) {
         print "Creating plugins directory on $host\n";
-        system("ssh $host mkdir ./.config/bcvi") == 0
+        system("ssh $host mkdir -p ./.config/bcvi") == 0
             or die "** mkdir failed on $host";
     }
     print "Copying plugin files to $host\n";
