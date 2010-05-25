@@ -30,7 +30,7 @@ our $VERSION   = '3.00';
 
 use File::Spec;
 use File::Path;
-use Getopt::Long qw(GetOptionsFromArray);
+use Getopt::Long qw();
 use Encode       qw(encode decode);
 use IO::Socket::INET;
 
@@ -410,13 +410,14 @@ sub process_command_line {
     my $opt = $class->option_defaults();
     my @cfg = $class->getopt_config();
 
-    GetOptionsFromArray(\@args, $opt, @cfg) or $class->die_synopsis();
+    local(@main::ARGV) = @args;
+    Getopt::Long::GetOptions($opt, @cfg) or $class->die_synopsis();
 
     my $handler = $opt->{listener}
                 ? $class->server_class
                 : $class->client_class;
 
-    $handler->new(_options => $opt)->dispatch(@args);
+    $handler->new(_options => $opt)->dispatch(@main::ARGV);
 }
 
 
