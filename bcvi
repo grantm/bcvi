@@ -15,6 +15,8 @@
 use strict;
 use warnings;
 
+require 5.008;
+
 ##############################################################################
 # This package implements some common functionality required by both the
 # client and the server.
@@ -1229,9 +1231,16 @@ sub full_pod {
     $pod =~ s{^=for BCVI_OPTIONS_SUMMARY\s*\n}{ $class->option_summary()}me;
     $pod =~ s{^=for BCVI_OPTIONS\s*\n}{ $class->option_detail() }me;
     $pod =~ s{^=for BCVI_COMMANDS\s*\n}{ $commands_pod }me;
-    my $parser = Pod::Text->new (sentence => 1, width => 78);
-    $parser->output_fh($pager);
-    $parser->parse_string_document($pod);
+    if(Pod::Text->isa('Pod::Simple')) {
+        my $parser = Pod::Text->new (sentence => 1, width => 78);
+        $parser->output_fh($pager);
+        $parser->parse_string_document($pod);
+    }
+    else {
+        open my $pod_fh, '<', \$pod or die "open(\$pod): $!";
+        my $parser = Pod::Text->new (sentence => 1, width => 78);
+        $parser->parse_from_filehandle($pod_fh, $pager);
+    }
 }
 
 
