@@ -1,0 +1,6 @@
+^README.markdown
+^\.git
+\.(SKIP|bak|old|swp|gz)$
+^blib
+^pm_to_blib
+^cover_db

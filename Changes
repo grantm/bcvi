@@ -1,0 +1,16 @@
+Revision history for App-BCVI
+
+3.00    2010-??-??
+        First version, uploaded to CPAN
+        Complete rewrite to support plugin API
+
+2.xx    ????-??-??
+        Numerous unreleased versions added support for:
+        * authentication via shared secrets
+        * additional backchannel commands
+        * automated installation
+        * improved reliability
+
+1.00    2007-04-23
+        First version published on PerlMonks
+

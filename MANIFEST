@@ -1,0 +1,9 @@
+bin/bcvi
+Changes
+lib/App/BCVI.pod
+Makefile
+Makefile.PL
+MANIFEST
+README
+t/00_syntax.t
+t/pod.t
