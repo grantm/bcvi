@@ -5,13 +5,13 @@ use strict;
 
 =head1 NAME
 
-App::BCVI - Back-channel vi, proxy commands back over ssh
+App::BCVI - Back-channel vi, a shell utility to proxy commands back over ssh
 
 =head1 DESCRIPTION
 
 The C<bcvi> utility works with SSH to allow commands issued on the SSH server
 host to be sent I<back> to the SSH client host over a port-forwarded 'back
-channel'.  A few examples might help clarify how bcvi is used:
+channel'.  A few examples might help clarify how C<bcvi> is used:
 
 =head2 Example 1
 
@@ -22,23 +22,20 @@ file:
   ~$ ssh pluto
   sally@pluto:~$ vi .bashrc
 
-The result is that the file is opened for editing in a 'gvim' editor window on
-sally's workstation.  Note, this does B<not> use X-forwarding.  The GUI editor
-process is running on sally's workstation.  The file is copied transparently to
-and from the server pluto using scp (via gvim's 'netrw' network transport
-layer).
+Through the magic of C<bcvi>, the result is that the file is opened for editing
+in a 'gvim' editor window on Sally's workstation.  Note, this does B<not> use
+X-forwarding.  The GUI editor process is running on Sally's workstation.  The
+file is copied transparently to and from the server pluto using scp (via gvim's
+'netrw' network transport layer).
 
-The advantages to sally include:
+Compared to running vim on the remote server in the terminal window, C<bcvi>
+provides these advantages to Sally:
 
 =over 4
 
 =item *
 
-no GUI apps or libraries need to be installed on the server
-
-=item *
-
-gvim on sally's workstation has all her preferred key mappings, custom macros,
+gvim on Sally's workstation has all her preferred key mappings, custom macros,
 plugins and scripts
 
 =item *
@@ -48,7 +45,7 @@ copying and pasting
 
 =item *
 
-gvim knows when sally is pasting so it disables autoindent automatically and
+gvim knows when Sally is pasting so it disables autoindent automatically and
 avoids the dreaded stair-step effect often seen when pasting into vim in a
 terminal window
 
@@ -57,14 +54,29 @@ terminal window
 because gvim is running locally (rather than via X-forwarding) the application
 loads quickly and is responsive to user input
 
+=item *
+
+no GUI apps or libraries need to be installed on the server*
+
 =back
 
-=head2 How it Works
+*You might argue that C<bcvi> itself will need to be installed on the server,
+but Sally can do that from her workstation with one simple command (and no need for root access):
 
-The C<bcvi> utility was not responsible for copying files to and from the server
-'pluto'.  Rather, bcvi was used to establish a communications channel from
-'pluto' back to sally's workstation.  This back channel was used to send a
-message triggering the launching of gvim and the loading of the specified file.
+  ~$ bcvi --install pluto
+  Creating ~/bin directory on pluto
+  Copying bcvi to remote bin directory on pluto
+  Creating plugins directory on pluto
+  Copying plugin files to pluto
+  Added bcvi commands to /home/sally/.bashrc
+
+=head2 How Example 1 Worked
+
+The C<bcvi> utility was not responsible for copying files to and from the
+server 'pluto' (gvim can already do that).  Rather, C<bcvi> was used to
+establish a communications channel from 'pluto' back to Sally's workstation.
+This back channel was used to send a message triggering the launching of gvim
+and the loading of the specified file.
 
 The example above assumed:
 
@@ -72,7 +84,8 @@ The example above assumed:
 
 =item *
 
-a bcvi 'listener' process had been started by sally's X session startup scripts
+a C<bcvi> 'listener' process had been launched by Sally's X session startup
+scripts
 
 =item *
 
@@ -82,14 +95,14 @@ parameters for port forwarding the 'back channel'
 
 =item *
 
-sally's login script on 'pluto' invoked bcvi to unpack the environment and set
+sally's login script on 'pluto' invoked C<bcvi> to unpack the environment and set
 up the required authentication key
 
 =item *
 
 the 'vi' command used to edit the file on pluto was actually a shell alias
-that invoked bcvi to pass a message over the backchannel to the listener
-process on sally's workstation
+that invoked C<bcvi> to pass a message over the backchannel to the listener
+process on Sally's workstation
 
 =item *
 
@@ -115,11 +128,11 @@ in the documentation directory:
   changelog.gz         manual.pdf   README.Debian
   sally@pluto:acmecrm$ bcp manual.pdf
 
-In the final command above, sally used the C<bcp> command to copy the PDF file
+In the final command above, Sally used the C<bcp> command to copy the PDF file
 back to the desktop on her workstation.  Then she simply double-clicked the
 file to open it in her PDF viewer.
 
-=head2 How It Worked
+=head2 How Example 2 Worked
 
 This second example used all the same infrastructure as the first (listener
 process, shell aliases and port forward) but added the command C<bcp>  Once
@@ -129,11 +142,11 @@ the listener process to run this command:
 
   scp -q pluto:/usr/share/doc/acmecrm/manual.pdf /home/sally/Desktop
 
-Note, for security reasons, the bcvi process running on pluto is not allowed to
-specify the command that gets executed on the workstation.  It simply sends a
-request which includes hostname and filename details.  The listener process
-determines which requests it will accept and which commands it will run to
-handle them.
+Note, for security reasons, the C<bcvi> process running on pluto is not allowed
+to specify the command that gets executed on the workstation.  It simply sends
+a request which includes hostname and filename details.  The listener process
+determines which types of requests it will accept and which commands it will
+run to handle them.
 
 =head2 Example 3
 
@@ -155,10 +168,10 @@ work.  Some minutes later, a desktop notification window pops up on her screen:
 Sally can now return to her number one priority - completing the set up of the
 Acme CRM software on pluto.
 
-=head2 How It Worked
+=head2 How Example 3 Worked
 
 Once again, this example used all the same back channel infrastructure used by
-the previous examples, but this one also used bcvi plugins.
+the previous examples, but this one also used C<bcvi> plugins.
 
 The C<bcvi> script itself requires no extra CPAN modules, but the interface to
 the desktop notifications API requires the L<Desktop::Notify> module from CPAN.
@@ -171,8 +184,8 @@ detail in L<App::BCVI::Plugins>.
 The C<bcvi> program is a standalone script with no companion modules and no
 non-core dependencies.  To install it, simply copy the C<bin/bcvi> file from
 the distribution to a directory in your search PATH.  Alternatively, you can
-use the standard CPAN installation procedure to install the script to
-/usr/local/bin:
+use the standard CPAN installation procedure to install the script to your
+site bin directory:
 
     perl Makefile.PL
     make
@@ -251,11 +264,11 @@ this is generated:
 
   ssh -R 10569:localhost:10569 HOSTNAME
 
-The first port number is the local port that the listener is waiting on.  The
-second port number is the port on the remote machine that the C<bcvi> client
-will connect to and which SSH will forward back to the listener.  You can
-override the second port number when you connect.  The first port number will
-be read from the F<listener_port> file.
+The first port number is the local port that the listener will accpet
+connections on.  The second port number is the port on the remote machine that
+the C<bcvi> client will connect to and which SSH will forward back to the
+listener.  You can override the second port number when you connect.  The first
+port number will be read from the F<listener_port> file.
 
 The remote host needs to know three things in order to use the back channel:
 
@@ -279,16 +292,16 @@ The random authentication key from the F<listener_key_file>
 The ssh wrapper command arranges for these pieces of information to be
 forwarded to the remote host.  If you don't want to know how it does that then
 please skip the rest of this paragraph.  WARNING: It's not pretty.  OK, so you
-really want to know?  Don't say I didn't warn you.  SSH does not pass
-environment variables from client to server without additional parameters in
-server and client config files.  However, SSH B<does> pass the TERM variable.
-So, BCVI appends all the extra info to the end of the TERM variable before
-invoking SSH.  This 'overstuffed' TERM variable then needs to be unpacked by
-the user's shell startup script on the server.  If this is not done, then your
-term variable will be wrong and you'll need to set it manually before editing
-your .profile to fix it.
+really want to know?  Don't say I didn't warn you.  SSH does not normally pass
+environment variables from client to server unless you customise the ssh config
+files on the client and the server.  However, SSH B<does> pass the TERM
+variable.  So, C<bcvi> appends all the extra info to the end of the TERM
+variable before invoking SSH.  This 'overstuffed' TERM variable then needs to
+be unpacked by the user's shell startup script on the server.  If this is not
+done, then your term variable will be wrong and you'll need to set it manually
+before editing your .profile to fix it.
 
-Unpacking the environment is achieved by running bcvi with the C<<
+Unpacking the environment is achieved by running C<bcvi> with the C<<
 --unpack-term >> option to generate a few lines of Bash script.  Those lines
 then need to be eval'd in the shell.  The standard installation procedure
 achieves this by adding this line to your shell startup script:
@@ -313,13 +326,13 @@ port-forward and sends a request similar to this:
   
   /home/sally/.bashrc
 
-The line protocol is intended to be UTF8 encoded with Content-Length specified
+The wire protocol is intended to be UTF8 encoded with Content-Length specified
 in bytes rather than characters.
 
 =head1 SUPPORT
 
-The bcvi script includes bult-in documentation which you can access with this
-command:
+The C<bcvi> script includes built-in documentation which you can access with
+this command:
 
   bcvi --help
 

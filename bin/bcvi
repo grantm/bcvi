@@ -818,7 +818,7 @@ sub install_bin_directory {
     my($self, $host) = @_;
 
     if(system("ssh $host test -d ./bin") != 0) {
-        print "Creating bin directory on $host\n";
+        print "Creating ~/bin directory on $host\n";
         system("ssh $host mkdir ./bin") == 0
             or die "** mkdir failed on $host";
     }
@@ -1329,7 +1329,7 @@ __DATA__
 
 =head1 NAME
 
-bcvi - Back-channel vi, proxy commands back over ssh
+bcvi - Back-channel vi, a shell utility to proxy commands back over ssh
 
 =head1 SYNOPSIS
 
@@ -1341,8 +1341,8 @@ bcvi - Back-channel vi, proxy commands back over ssh
 
 =head1 DESCRIPTION
 
-This utility works with SSH to allow commands issued on the SSH server to be
-'proxied' back to the SSH client machine.  For example:
+This utility works with SSH to allow commands issued on the SSH server host to
+be 'proxied' back to the SSH client host.  For example:
 
 =over 4
 
@@ -1362,6 +1362,8 @@ the result is that sue gets a responsive GUI editor running on her local
 machine, but editing a file on the remote machine
 
 =back
+
+See C<< perldoc App::BCVI >> for more examples and background information.
 
 =head1 OPTIONS
 
