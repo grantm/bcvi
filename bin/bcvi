@@ -56,14 +56,17 @@ my(
     %plugin_loaded, @plugins,
 );
 
-App::BCVI->base_init();
+run(@ARGV) unless caller();       # Don't run anything if loaded via 'require'
 
-App::BCVI->load_plugins();
+sub run {
+    App::BCVI->base_init();
 
-App::BCVI->base_class()->process_command_line(@ARGV);
+    App::BCVI->load_plugins();
 
-exit;
+    App::BCVI->base_class()->process_command_line(@_);
 
+    exit;
+}
 
 sub version      { return $App::BCVI::VERSION; }
 sub base_class   { return $class_map{base};    }
@@ -410,14 +413,14 @@ sub process_command_line {
     my $opt = $class->option_defaults();
     my @cfg = $class->getopt_config();
 
-    local(@main::ARGV) = @args;
+    local(@ARGV) = @args;
     Getopt::Long::GetOptions($opt, @cfg) or $class->die_synopsis();
 
     my $handler = $opt->{listener}
                 ? $class->server_class
                 : $class->client_class;
 
-    $handler->new(_options => $opt)->dispatch(@main::ARGV);
+    $handler->new(_options => $opt)->dispatch(@ARGV);
 }
 
 
@@ -1324,6 +1327,8 @@ sub pager {
     return \*STDOUT;
 }
 
+
+1;
 
 __DATA__
 
