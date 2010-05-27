@@ -1,0 +1,97 @@
+
+=head1 NAME
+
+App::BCVI::Plugins - Documentation about the bcvi plugin API
+
+=head1 DESCRIPTION
+
+BCVI plugins are .pm files (Perl modules) in the user's BCVI config directory
+(F<$HOME/.config/bcvi>).
+
+Plugins can:
+
+=over 4
+
+=item *
+
+add new command-line options (and add code to process those options)
+
+=item *
+
+add new back-channel commands (and add code to implement those commands in
+the listener process)
+
+=item *
+
+modify almost any existing functionality of C<bcvi> (including removing
+functionality)
+
+=item *
+
+modify both the server (listener) and/or the client
+
+=back
+
+Ideally you should be able to customise the behaviour of C<bcvi> in pretty
+much any way you want without needing to edit the C<bcvi> script itself.
+
+=head1 A SIMPLE EXAMPLE
+
+Here's a silly plugin (that no sane person would ever want to use) which
+overrides the 'vi' command handler and instead of launching C<gvim> it launches
+C<gedit> (the GNOME text editor) - I did warn you it was a silly example:
+
+  package App::BCVI::Gedit;
+  
+  use strict;
+  use warnings;
+  
+  sub execute_vi {
+      my($self, $sock) = @_;
+
+      my $alias = $self->calling_host();
+      my @files = map { "sftp://${alias}$_" } $self->get_filenames($sock);
+      system('gedit', '--', @files);
+  }
+  
+  App::BCVI->hook_server_class();
+  
+  1;
+
+This file should be saved as F<$HOME/.config/bcvi/Gedit.pm>.  Lets go through
+it line-by-line.
+
+Each plugin must have a unique package name.  The App::BCVI namespace is there
+for plugins to use.  By convention, the filename should match the last part of
+the package name, with '.pm' appended.
+
+The C<use strict;> and C<use warnings;> are good practice in any Perl module.
+
+The C<execute_vi> subroutine was copy/pasted from the C<bcvi> script itself
+and then modified to work with C<gedit> rather than C<gvim>.
+
+The C<hook_server_class> line is a method call that pushes this class onto the
+inheritance chain for the object class that implements the listener process.
+When the listener process calls C<execute_vi> in response to a request from a
+client, our method is called instead of the standard method.  In some plugins,
+it might make sense to delegate to the standard method using the syntax
+C<< $self->SUPER::execute_vi(@args) >>.  But in our case we're replacing the
+standard method rather than augmenting it.
+
+=head1 PLUGIN LOADING
+
+Plugin files are never loaded from anywhere except the user's BCVI config
+directory.  In particular, C<bcvi> never loads any modules from the system
+F<lib/App/BCVI> directory.  If you get plugin modules from CPAN, you'll need
+to copy the .pm files into your plugin directory.
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2007-2010 Grant McLean C<< <grantm at cpan.org> >>
+
+This program is free software; you can redistribute it and/or modify it under
+the same terms as Perl itself.
+
+
+=cut
+
