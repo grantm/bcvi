@@ -1,6 +1,7 @@
 bin/bcvi
 Changes
 lib/App/BCVI.pod
+lib/App/BCVI/Plugins.pod
 Makefile
 Makefile.PL
 MANIFEST
