@@ -1,8 +1,8 @@
 Changes
-MANIFEST
-Makefile.PL
-README
 lib/App/BCVI/InstallManager.pm
+Makefile.PL
+MANIFEST
+README
 t/00-load.t
 t/pod-coverage.t
 t/pod.t
