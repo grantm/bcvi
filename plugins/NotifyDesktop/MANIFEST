@@ -1,0 +1,7 @@
+Changes
+lib/App/BCVI/NotifyDesktop.pm
+Makefile.PL
+MANIFEST
+README
+t/00-load.t
+t/pod.t
