@@ -1,0 +1,46 @@
+App-BCVI-NotifyClient
+
+This module is a plugin for 'bcvi' (see: http://search.cpan.org/dist/App-BCVI).
+To use it, simply copy the NotifyClient.pm file to your $HOME/.config/bcvi/
+folder.
+
+The role of this plugin is to send messages back to the user's workstation for
+display through the Desktop notifictation system.  It is assumed you have
+installed another plugin (e.g.: App-BCVI-NotifyDesktop) to handle the GUI
+notifications.
+
+
+SUPPORT AND DOCUMENTATION
+
+You can find documentation for this module with the perldoc command.
+
+Before installation:
+
+    perldoc lib/App/BCVI/NotifyClient.pm
+
+After instalation:
+
+    perldoc $HOME/.config/bcvi/NotifyClient.pm
+
+You can also look for information at:
+
+    RT, CPAN's request tracker
+        http://rt.cpan.org/NoAuth/Bugs.html?Dist=App-BCVI-NotifyClient
+
+    AnnoCPAN, Annotated CPAN documentation
+        http://annocpan.org/dist/App-BCVI-NotifyClient
+
+    CPAN Ratings
+        http://cpanratings.perl.org/d/App-BCVI-NotifyClient
+
+    Search CPAN
+        http://search.cpan.org/dist/App-BCVI-NotifyClient
+
+
+COPYRIGHT AND LICENCE
+
+Copyright (C) 2010 Grant McLean
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
