@@ -111,8 +111,9 @@ App::BCVI::InstallManager - Track where bcvi is installed, to manage updates
 
 =head1 DESCRIPTION
 
-This module is a plugin for C<bcvi>.  It tracks the names of servers where
-bcvi has been installed using the C<< bcvi --install <host> >> command.
+This module is a plugin for C<bcvi> (see: L<App::BCVI>).  It tracks the names
+of servers where bcvi has been installed using the C<< bcvi --install <host> >>
+command.
 
 The plugin also adds the C<--update-all> option to the C<bcvi> command.  This
 option identifies hosts where an old version of bcvi is installed and re-runs
