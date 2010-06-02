@@ -91,8 +91,8 @@ parameters for port forwarding the 'back channel'
 
 =item *
 
-sally's login script on 'pluto' invoked C<bcvi> to unpack the environment and set
-up the required authentication key
+Sally's login script on 'pluto' invoked C<bcvi> to unpack the environment and
+set up the required authentication key
 
 =item *
 
@@ -114,7 +114,7 @@ L<"INSTALLATION"> below.
 
 =head2 Example 2
 
-Our friend 'sally' is logged on to the server 'pluto' and is trying to configure
+Our friend Sally is logged on to the server 'pluto' and is trying to configure
 the 'Acme CRM' package.  She explores the filesystem and locates a useful file
 in the documentation directory:
 
@@ -125,8 +125,8 @@ in the documentation directory:
   sally@pluto:acmecrm$ bcp manual.pdf
 
 In the final command above, Sally used the C<bcp> command to copy the PDF file
-back to the desktop on her workstation.  Then she simply double-clicked the
-file to open it in her PDF viewer.
+back to the desktop on her workstation.  Then she was able to simply
+double-click the desktop icon to open it in her PDF viewer.
 
 =head2 How Example 2 Worked
 
@@ -151,7 +151,7 @@ to restore a database dump.  This will take some time and Sally has other
 things to get on with so she kicks off this command (actually, two commands
 separated by a semicolon):
 
-  sally@pluto:~$ pg_restore -d acmecrm crm.pgdump; bnotify "DB is restored!"
+  sally@pluto:~$ pg_restore -d acmecrm crm.pgdump; bnotify 'DB is restored!'
 
 Sally then minimises her shell/ssh window and gets on with some other important
 work.  Some minutes later, a desktop notification window pops up on her screen:
