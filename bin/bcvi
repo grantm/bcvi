@@ -760,7 +760,14 @@ sub wrap_ssh {
         warn "bcvi: unable to extract hostname from ssh command line\n";
         @args_out = @orig;
     }
-    system 'ssh', @args_out;
+    $self->execute_ssh(@args_out);
+}
+
+
+sub execute_ssh {
+    my($self, @args) = @_;
+
+    system 'ssh', @args;
 }
 
 
