@@ -5,9 +5,12 @@ App::BCVI - Back-channel vi, a shell utility to proxy commands back over ssh
 
 =head1 DESCRIPTION
 
+
 The C<bcvi> utility works with SSH to allow commands issued on the SSH server
 host to be sent I<back> to the SSH client host over a port-forwarded 'back
-channel'.  A few examples might help clarify how C<bcvi> is used:
+channel'.  A few examples might help clarify how C<bcvi> is used (note you can
+read an illustrated version of the following examples at:
+L<http://sshmenu.sourceforge.net/articles/bcvi/>):
 
 =head2 Example 1
 
