@@ -1,0 +1,2 @@
+* list installed plugins in --help
+* add --plugin-help to display POD for the named plugin
