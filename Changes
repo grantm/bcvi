@@ -1,6 +1,6 @@
 Revision history for App-BCVI
 
-3.00    2010-??-??
+3.00    2010-06-03
         First version, uploaded to CPAN
         Complete rewrite to support plugin API
 
