@@ -74,6 +74,7 @@ sub client_class { return $class_map{client};  }
 sub server_class { return $class_map{server};  }
 sub pod_class    { return $class_map{pod};     }
 sub map_class    { $class_map{$_[1]} = $_[2];  }
+sub sock         { shift->{sock};              }
 
 sub installable_files { return @installables;     }
 sub message_from_code { $response_message{$_[1]}; }
@@ -611,14 +612,14 @@ sub send_command {
         "Command: "    . $command          . $LF
     ) or die "Error sending command through backchannel: $!";
 
-    $self->send_body($sock, \@files);
-    return if $self->check_response($sock) =~ /^(?:200|300)$/;
+    $self->send_body(\@files);
+    return if $self->check_response() =~ /^(?:200|300)$/;
     die $self->response_message . "\n";
 }
 
 
 sub send_body {
-    my($self, $sock, $files) = @_;
+    my($self, $files) = @_;
 
     my $translate_paths = ! $self->opt('no-path-xlate');
 
@@ -627,7 +628,7 @@ sub send_body {
         "$_$LF";
     } @$files;
 
-    $sock->write(
+    $self->sock->write(
         'Content-Length: ' . length($body) . $LF .
         $LF .
         $body
@@ -636,12 +637,12 @@ sub send_body {
 
 
 sub check_response {
-    my($self, $sock) = @_;
+    my($self) = @_;
 
-    my $response = $sock->getline() or die "Server hung up\n";
+    my $response = $self->sock->getline() or die "Server hung up\n";
     if(my($code, $message) = $response =~ m{^(\d\d\d) (.*)$}) {
         ($self->{response_code}, $self->{response_message}) = ($code, $message);
-        $self->read_response($sock) if $code eq '300';
+        $self->read_response() if $code eq '300';
         return $code;
     }
     die "Unexpected response: '$response'\n";
@@ -649,8 +650,9 @@ sub check_response {
 
 
 sub read_response {
-    my($self, $sock) = @_;
+    my($self) = @_;
 
+    my $sock = $self->sock();
     my $resp = {};
     while(my($line) = $sock->getline() || '') {
         chomp($line);
@@ -969,7 +971,6 @@ sub start_listener {
 
 
 sub auth_key     { shift->{auth_key}; }
-sub sock         { shift->{sock};     }
 sub client_sock  { shift->{client};   }
 sub request      { shift->{request};  }
 sub calling_host { shift->{request}->{host_alias};  }
@@ -1055,7 +1056,7 @@ sub accept_loop {
 
     $SIG{CHLD} = 'IGNORE';  # let Perl reap the zombies
 
-    my $sock = $self->sock;
+    my $sock = $self->sock();
     while(1) {
         my $new = $sock->accept();
         next if $!{EINTR};
@@ -1064,7 +1065,8 @@ sub accept_loop {
         }
         else {        # In child
             close $sock;
-            $self->dispatch_request($new);
+            $self->{sock} = $new;
+            $self->dispatch_request();
             exit(0);
         }
     }
@@ -1072,16 +1074,16 @@ sub accept_loop {
 
 
 sub dispatch_request {
-    my($self, $sock) = @_;
+    my($self) = @_;
 
-    $self->send_response($sock, 100);
-    my $req = $self->collect_headers($sock);
+    $self->send_response(100);
+    my $req = $self->collect_headers();
     $self->validate_auth_key($req->{auth_key})
-        or $self->exit_response($sock, 900);
+        or $self->exit_response(900);
     my $method = $self->command_handler($req->{command})
-        or $self->exit_response($sock, 910);
-    $self->$method($sock);
-    $self->send_response($sock, 200);
+        or $self->exit_response(910);
+    $self->$method();
+    $self->send_response(200);
 }
 
 
@@ -1096,26 +1098,27 @@ sub validate_auth_key {
 
 
 sub send_response {
-    my($self, $sock, $code) = @_;
+    my($self, $code) = @_;
 
     my $message = $self->message_from_code($code) || 'Invalid response code';
     $message = Encode::encode('utf8', $message);
-    $sock->write(qq{$code $message\x0A});
+    $self->sock->write(qq{$code $message\x0A});
 }
 
 
 sub exit_response {
-    my($self, $sock, $code) = @_;
+    my($self, $code) = @_;
 
-    $self->send_response($sock, $code);
+    $self->send_response($code);
     exit(0);
 }
 
 
 sub collect_headers {
-    my($self, $sock) = @_;
+    my($self) = @_;
 
-    my $req = {};
+    my $sock = $self->sock();
+    my $req  = {};
     while(my($line) = $sock->getline() || '') {
         chomp($line);
         last if $line eq '';
@@ -1130,11 +1133,11 @@ sub collect_headers {
 
 
 sub read_request_body {
-    my($self, $sock) = @_;
+    my($self) = @_;
 
     my $bytes = $self->request->{content_length};
-
-    my $buf = '';
+    my $sock  = $self->sock();
+    my $buf   = '';
     while(my $count = $sock->read($buf, $bytes, length($buf))) {
         $bytes -= $count;
         last if $bytes < 1;
@@ -1144,19 +1147,19 @@ sub read_request_body {
 
 
 sub get_filenames {
-    my($self, $sock) = @_;
+    my($self) = @_;
 
-    return split /\x0a/, Encode::decode('utf8', $self->read_request_body($sock));
+    return split /\x0a/, Encode::decode('utf8', $self->read_request_body());
 }
 
 
 sub execute_commands_pod {
-    my($self, $sock) = @_;
+    my($self) = @_;
 
-    $self->send_response($sock, 300);
+    $self->send_response(300);
     my $pod = $self->pod_class->command_detail();
     $pod = Encode::encode('utf8', $pod);
-    $sock->write(
+    $self->sock->write(
         'Content-Type: text/pod'          . $LF .
         'Content-Length: ' . length($pod) . $LF .
         $LF .
@@ -1166,30 +1169,30 @@ sub execute_commands_pod {
 
 
 sub execute_vi {
-    my($self, $sock) = @_;
+    my($self) = @_;
 
     my $alias = $self->calling_host();
-    my @files = map { "scp://$alias/$_" } $self->get_filenames($sock);
+    my @files = map { "scp://$alias/$_" } $self->get_filenames();
     system('gvim', '--', @files);
 }
 
 
 sub execute_viwait {
-    my($self, $sock) = @_;
+    my($self) = @_;
 
     my $alias = $self->calling_host();
-    my @files = map { "scp://$alias/$_" } $self->get_filenames($sock);
+    my @files = map { "scp://$alias/$_" } $self->get_filenames();
     system('gvim', '-f', '--', @files);
 }
 
 
 sub execute_scpd {
-    my($self, $sock) = @_;
+    my($self) = @_;
 
     my $dest = File::Spec->catdir($self->home_directory(), 'Desktop');
 
     my $alias = $self->calling_host();
-    my @files = map { "$alias:$_" } $self->get_filenames($sock);
+    my @files = map { "$alias:$_" } $self->get_filenames();
 
     system('scp', '-q', '--', @files, $dest);
 }

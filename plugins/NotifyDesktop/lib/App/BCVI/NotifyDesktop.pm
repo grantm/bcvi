@@ -9,11 +9,11 @@ use Encode qw(encode decode);
 
 
 sub execute_notify {
-    my($self, $sock) = @_;
+    my($self) = @_;
 
     my $title = "Notification from " . $self->calling_host();
 
-    my $message = decode('utf8', $self->read_request_body($sock));
+    my $message = decode('utf8', $self->read_request_body());
 
     eval { require Desktop::Notify; };
     if($@) {
