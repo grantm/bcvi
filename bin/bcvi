@@ -26,7 +26,7 @@ require 5.008;
 
 package App::BCVI;
 
-our $VERSION   = '3.00';
+our $VERSION   = '3.01';
 
 use File::Spec;
 use File::Path;
@@ -736,8 +736,12 @@ sub wrap_ssh {
 
     my @orig = @args_in;
     my(@args_out, @hosts);
+    my $user = '';
     while(@args_in) {
         $_ = shift @args_in;
+        if(/^-l(.*)$/) {             # extract username if specificed with -l
+            $user = $1 ? $1 : $args_in[0];
+        }
         if(/^-(.)(.*)$/) {
             push @args_out, $_;
             push @args_out, shift @args_in
@@ -750,7 +754,9 @@ sub wrap_ssh {
     }
     if(@hosts == 1) {
         my($target) = @hosts;
-        $target =~ s{^.*\@}{};
+        if($user and $target !~ /@/) {
+            $target = $user . '@' . $target;
+        }
         my $remote_port = $self->opt('port') || $self->default_port();
         my $local_port  = $self->listener_port();
         $ENV{TERM} = "$ENV{TERM}\n"

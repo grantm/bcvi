@@ -1,5 +1,9 @@
 Revision history for App-BCVI
 
+3.00    2010-06-05
+        - Fix bug where remote username was not being propagated to $BCVI_CONF
+          (bug report from Douglas Wilson)
+
 3.00    2010-06-03
         First version, uploaded to CPAN
         Complete rewrite to support plugin API
