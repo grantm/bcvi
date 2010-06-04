@@ -1358,17 +1358,17 @@ be 'proxied' back to the SSH client host.  For example:
 
 =item *
 
-user F<sue> establishes an SSH connection from her workstation to a server
+user F<sally> establishes an SSH connection from her workstation to a server
 named F<pluto> and runs the command C<bcvi .bashrc>
 
 =item *
 
-bcvi tunnels the details back to sue's workstation which then invokes the
-command C<gvim scp://pluto//home/sue/.bashrc>
+bcvi tunnels the details back to sally's workstation which then invokes the
+command C<gvim scp://pluto//home/sally/.bashrc>
 
 =item *
 
-the result is that sue gets a responsive GUI editor running on her local
+the result is that sally gets a responsive GUI editor running on her local
 machine, but editing a file on the remote machine
 
 =back
