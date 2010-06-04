@@ -485,8 +485,7 @@ sub dispatch_option {
     my @set;
     $self->each_option(sub {
         my($o) = @_;
-        push @set, $o
-            if my $method = $o->{dispatch_to} && $self->opt($o->{name});
+        push @set, $o if $o->{dispatch_to} && defined $self->opt($o->{name});
     });
     return unless @set;
     if(@set > 1) {
