@@ -7,16 +7,26 @@ use Digest::MD5;
 use Fcntl;
 use SDBM_File;
 
-our $VERSION = '1.00';
+our $VERSION = '1.01';
 
 my($source_signature, %sig_db, $db_file);
 
 sub update_all_installs {
     my($self) = @_;
 
+    if(my $arg = $self->opt('update-all')) {  # usual value '' is false
+        if($arg eq 'list') {
+            return $self->list_all_installs
+        }
+        elsif($arg =~ m{^-(.+)$}) {
+            return $self->untrack_host($1);
+        }
+        die "Unrecognised argument ('$arg') to --update-all\n";
+    }
+
     my $sig = $self->install_source_signature();
     my $host_sigs = $self->all_install_signatures();
-    my @hosts = grep { $host_sigs->{$_} ne $sig } keys %$host_sigs;
+    my @hosts = grep { $host_sigs->{$_} ne $sig } sort keys %$host_sigs;
     if(@hosts) {
         $self->install_to_hosts(@hosts);
     }
@@ -24,6 +34,37 @@ sub update_all_installs {
         print "All known targets are up to date\n";
         exit(0);
     }
+}
+
+
+sub list_all_installs {
+    my($self) = @_;
+
+    my $valid = $self->install_source_signature();
+
+    $self->tie_install_sig_db();
+
+    foreach my $key (sort keys %sig_db) {
+        my $sig = $sig_db{$key};
+        if($sig eq $valid) {
+            printf("%-30s  OK\n", $key);
+        }
+        else {
+            printf("%-30s  Needs update\n", $key);
+        }
+    }
+
+    $self->untie_install_sig_db();
+}
+
+
+sub untrack_host {
+    my($self, $host) = @_;
+
+    print "Discarding install info for $host\n";
+    $self->tie_install_sig_db();
+    delete $sig_db{$host};
+    $self->untie_install_sig_db();
 }
 
 
@@ -88,12 +129,17 @@ sub install_source_signature {
 
 App::BCVI->register_option(
     name        => 'update-all',
+    arg_spec    => ':s',
     dispatch_to => 'update_all_installs',
     summary     => 'update bcvi on all tracked hosts',
     description => <<'END_POD'
 This option is provided by the InstallManager plugin.  It causes C<--install>
 to be run against each host where bcvi has been installed but is now out of
 date.
+
+Two sub options are available: You can list all known hosts where bcvi has been
+installed, with: C<< --update-all=list >>.  You can also discard a hostname from
+being tracked with: C<< --update-all=-hostname >>.
 END_POD
 );
 
