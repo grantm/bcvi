@@ -205,6 +205,18 @@ without invalidating client keys.
 END_POD
     );
 
+    $class->register_option(
+        name        => 'plugin-help',
+        arg_spec    => '=s',
+        arg_name    => '<plugin>',
+        dispatch_to => 'plugin_help',
+        summary     => "display documentation for <plugin>",
+        description => <<'END_POD'
+The --help output includes a list of installed plugins.  Use this option to
+read the documentation for a named plugin.
+END_POD
+    );
+
 
     $class->register_command(
         name        => 'vi',
@@ -578,6 +590,19 @@ sub list_plugins {
         }
     }
     return @plugins;
+}
+
+
+sub plugin_help {
+    my($self) = @_;
+
+    my $plugin = $self->opt('plugin-help');
+    if(my $path = $plugin_loaded{"${plugin}.pm"}) {
+        $self->pod_class->show_plugin_help($path);
+    }
+    else {
+        die "Can't find plugin: '$plugin'\n";
+    }
 }
 
 
@@ -1344,7 +1369,8 @@ sub plugins_pod {
         my $s = @plugin_list == 1 ? '' : 's';
         return join("\n\n",
             "You have the following plugin$s installed:",
-            @plugin_list
+            @plugin_list,
+            "Use C<< bcvi --plugin-help plugin-name >> for detailed info.",
         ) . "\n\n";
     }
 
@@ -1368,6 +1394,23 @@ sub extract_title {
         }
     }
     return;
+}
+
+
+sub show_plugin_help {
+    my($class, $path) = @_;
+
+    my $pager = $class->pager();
+    if(Pod::Text->isa('Pod::Simple')) {
+        my $parser = Pod::Text->new (sentence => 1, width => 78);
+        $parser->output_fh($pager);
+        $parser->parse_file($path);
+    }
+    else {
+        open my $pod_fh, '<', $path or die "open($path): $!";
+        my $parser = Pod::Text->new (sentence => 1, width => 78);
+        $parser->parse_from_filehandle($pod_fh, $pager);
+    }
 }
 
 
