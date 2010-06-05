@@ -1,6 +1,6 @@
 Revision history for App-BCVI
 
-3.02    2010-06-??
+3.02    2010-06-05
         - allow optional arguments on 'dispatch_to' options
         - list installed plugins in --help
         - add --plugin-help option
