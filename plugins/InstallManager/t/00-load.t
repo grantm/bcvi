@@ -1,22 +1,22 @@
 #!perl
 
 use File::Spec qw();
-use Test::More;
+use Test::More tests => 1;
 
 my $bin_file = find_bcvi();
 
 if(not $bin_file) {
-    plan skip_all => 'App::BCVI does not appear to be installed';
+    diag 'App::BCVI does not appear to be installed';
+    ok(1);
     exit(0);
 }
 
 eval { require $bin_file };
 if($@) {
-    plan skip_all => qq{Your bcvi installation ($bin_file) appears to be old/broken: "$@"};
+    diag qq{Your bcvi installation ($bin_file) appears to be old/broken: "$@"};
+    ok(1);
     exit(0);
 }
-
-plan tests => 1;
 
 use_ok('App::BCVI::InstallManager');
 
