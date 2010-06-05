@@ -1,6 +1,10 @@
 Revision history for App-BCVI
 
-3.00    2010-06-05
+3.02    2010-06-??
+        - allow optional arguments on 'dispatch_to' options
+        - list installed plugins in --help
+
+3.01    2010-06-05
         - Fix bug where remote username was not being propagated to $BCVI_CONF
           (bug report from Douglas Wilson)
 

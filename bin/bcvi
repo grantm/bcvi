@@ -26,7 +26,7 @@ require 5.008;
 
 package App::BCVI;
 
-our $VERSION   = '3.01';
+our $VERSION   = '3.02';
 
 use File::Spec;
 use File::Path;
@@ -365,7 +365,7 @@ sub load_plugin_file {
         die qq{Error loading plugin "$file"\n$@\n}
     }
 
-    $plugin_loaded{$key} = 1;
+    $plugin_loaded{$key} = $file;
 }
 
 
@@ -560,6 +560,24 @@ sub get_listener_auth_key {
         or die "Auth key file does not exist: $auth_file";
     chomp($auth_key);
     return $auth_key;
+}
+
+
+sub list_plugins {
+    my($self) = @_;
+
+    my @plugins;
+    foreach my $name (sort keys %plugin_loaded) {
+        my $path = $plugin_loaded{$name};
+        $name =~ s{[.]pm$}{};
+        if(my $title = $self->pod_class->extract_title($path)) {
+            push @plugins, "$name - $title";
+        }
+        else {
+            push @plugins, "$name - no documentation";
+        }
+    }
+    return @plugins;
 }
 
 
@@ -1234,12 +1252,14 @@ sub full_pod {
         $commands_pod = $app->commands_pod();
     }
     $commands_pod ||= $class->command_detail();
+    my $plugins_pod = $class->plugins_pod($app);
 
     my $pager = $class->pager();
     my $pod   = $pod_skeleton;
     $pod =~ s{^=for BCVI_OPTIONS_SUMMARY\s*\n}{ $class->option_summary()}me;
     $pod =~ s{^=for BCVI_OPTIONS\s*\n}{ $class->option_detail() }me;
     $pod =~ s{^=for BCVI_COMMANDS\s*\n}{ $commands_pod }me;
+    $pod =~ s{^=for BCVI_PLUGINS\s*\n}{ $plugins_pod }me;
     if(Pod::Text->isa('Pod::Simple')) {
         my $parser = Pod::Text->new (sentence => 1, width => 78);
         $parser->output_fh($pager);
@@ -1314,6 +1334,40 @@ sub command_detail {
     push @lines, "\n=back\n\n";
 
     return join '', @lines;
+}
+
+
+sub plugins_pod {
+    my($class, $app) = @_;
+
+    if(my @plugin_list = $app->list_plugins()) {
+        my $s = @plugin_list == 1 ? '' : 's';
+        return join("\n\n",
+            "You have the following plugin$s installed:",
+            @plugin_list
+        ) . "\n\n";
+    }
+
+    return "You have no plugins installed.\n\n";
+}
+
+
+sub extract_title {
+    my($class, $path) = @_;
+
+    open my $fh, '<', $path or return;
+    my $name_section = 0;
+    while(<$fh>) {
+        chomp;
+        if(/^=head1\s+NAME$/) {
+            $name_section++;
+        }
+        elsif($name_section  and  /\S/) {
+            s{^.+?\s-\s}{};
+            return $_;
+        }
+    }
+    return;
 }
 
 
@@ -1415,6 +1469,10 @@ The installation to a remote server should set up aliases, e.g.:
 
   test -n "${BCVI_CONF}"  && alias vi="bcvi"
   test -n "${BCVI_CONF}"  && alias bcp="bcvi -c scpd"
+
+=head1 PLUGINS
+
+=for BCVI_PLUGINS
 
 =head1 COPYRIGHT
 
