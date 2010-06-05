@@ -165,6 +165,14 @@ The plugin also adds the C<--update-all> option to the C<bcvi> command.  This
 option identifies hosts where an old version of bcvi is installed and re-runs
 the C<--install> against those hosts to update the script and aliases.
 
+To get a list of all the hosts where C<bcvi> is installed, you can run:
+
+  bcvi --update-all=list
+
+To remove a host from the list, use:
+
+  bcvi --update-all=-hostname
+
 Note: Although this plugin does hook into the C<--install> process, it does not
 change the behaviour of that process.  In particular it will B<not> block an
 attempt to install the same version of bcvi as is already installed on a host.

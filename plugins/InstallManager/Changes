@@ -1,5 +1,9 @@
 Revision history for App-BCVI-InstallManager
 
+1.01    2010-06-05
+        - add sub option to list installed hosts
+        - add sub option to remove host from list
+
 1.00    2010-06-03
         First version, uploaded to CPAN
 
