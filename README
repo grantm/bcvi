@@ -1,0 +1,91 @@
+App-BCVI
+
+This distribution provides the 'bcvi' utility which works with SSH to
+provide a 'back channel' from the SSH server back to your workstation.
+Messages sent over the back channel can initiate a number of tasks
+including invoking a GUI editor on your workstation and instructing it
+to open a file on the server.  A number of back channel commands are
+available 'out of the box' and you can write plugins to add more.
+
+
+INSTALLATION
+
+The 'bcvi' program is a standalone script with no companion modules and
+no non-core dependencies.  To install it, simply copy the bin/bcvi file
+from the distribution to a directory in your search PATH.  Alternatively,
+you can use the standard CPAN installation procedure to install the
+script to /usr/local/bin:
+
+    perl Makefile.PL
+    make
+    make test
+    make install
+
+The backchannel protocol requires a client and a server - the 'bcvi' script
+performs both roles.  The server runs on your workstation and is typically
+launched by adding this command to your X session startup:
+
+    bcvi --listener
+
+When connecting to a server you will want to use this command to wrap the
+SSH command and add the required port forwarding options:
+
+    bcvi --wrap-ssh -- hostname
+
+It is probably more convenient to set up an alias so that this happens on
+every SSH connection.  Use this command to add the appropriate aliases to
+your bash startup scripts:
+
+    bcvi --add-aliases
+
+Now that you have the server set up and ssh connection wrapping in place,
+you need to install 'bcvi' on the machine you will ssh to:
+
+    bcvi --install HOSTNAME
+
+Now that the installation is complete, when you log in to the machine
+using SSH, a number of shell aliases will be available to you:
+
+    vi
+        Invokes gvim on your workstation, passing it an scp://... URL 
+        of the file(s) you wish to edit
+
+    suvi
+        Same as above, but uses sudoedit so system files (requiring
+        root access) can be edited too
+
+    bcp
+        Copies the named file back to your workstation desktop
+
+SUPPORT AND DOCUMENTATION
+
+The 'bcvi' command has built-in documentation which you can read with:
+
+    bcvi --help
+
+To find out more about writing and installing plugins, use perldoc:
+
+    perldoc App::BCVI
+
+You can also look for information at:
+
+    RT, CPAN's request tracker
+        http://rt.cpan.org/NoAuth/Bugs.html?Dist=App-BCVI
+
+    AnnoCPAN, Annotated CPAN documentation
+        http://annocpan.org/dist/App-BCVI
+
+    CPAN Ratings
+        http://cpanratings.perl.org/d/App-BCVI
+
+    Search CPAN
+        http://search.cpan.org/dist/App-BCVI
+
+
+COPYRIGHT AND LICENCE
+
+Copyright (C) 2007-2010 Grant McLean
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+

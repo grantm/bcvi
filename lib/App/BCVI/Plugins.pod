@@ -1,0 +1,372 @@
+
+=head1 NAME
+
+App::BCVI::Plugins - Documentation about the bcvi plugin API
+
+=head1 DESCRIPTION
+
+BCVI plugins are .pm files (Perl modules) in the user's BCVI config directory
+(F<$HOME/.config/bcvi>).
+
+Plugins can:
+
+=over 4
+
+=item *
+
+add new command-line options (and add code to process those options)
+
+=item *
+
+add new back-channel commands (and add code to implement those commands in
+the listener process)
+
+=item *
+
+modify almost any existing functionality of C<bcvi> (including removing
+functionality)
+
+=item *
+
+modify both the server (listener) and/or the client
+
+=back
+
+Ideally you should be able to customise the behaviour of C<bcvi> in pretty
+much any way you want without needing to edit the C<bcvi> script itself.
+
+=head1 A SIMPLE EXAMPLE
+
+Here's a silly plugin (that no sane person would ever want to use) which
+overrides the 'vi' command handler and instead of launching C<gvim> it launches
+C<gedit> (the GNOME text editor) - I did warn you it was a silly example:
+
+  package App::BCVI::Gedit;
+  
+  use strict;
+  use warnings;
+  
+  sub execute_vi {
+      my($self) = @_;
+
+      my $alias = $self->calling_host();
+      my @files = map { "sftp://${alias}$_" } $self->get_filenames();
+      system('gedit', '--', @files);
+  }
+  
+  App::BCVI->hook_server_class();
+  
+  1;
+
+This file should be saved as F<$HOME/.config/bcvi/Gedit.pm>.  Lets go through
+it line-by-line.
+
+Each plugin must have a unique package name.  The App::BCVI namespace is there
+for plugins to use.  By convention, the filename should match the last part of
+the package name, with '.pm' appended.
+
+The C<use strict;> and C<use warnings;> are good practice in any Perl module.
+
+The C<execute_vi> subroutine was copy/pasted from the C<bcvi> script itself
+and then modified to work with C<gedit> rather than C<gvim>.
+
+The C<hook_server_class> line is a method call that pushes this class onto the
+inheritance chain for the object class that implements the listener process.
+When the listener process calls C<execute_vi> in response to a request from a
+client, our method is called instead of the standard method.  In some plugins,
+it might make sense to delegate to the standard method using the syntax
+C<< $self->SUPER::execute_vi(@args) >>, but in our case we're replacing the
+standard method rather than augmenting it.
+
+=head1 PLUGIN LOADING
+
+Plugin files are never loaded from anywhere except the user's BCVI config
+directory.  In particular, C<bcvi> never loads any modules from the system
+F<lib/App/BCVI> directory.  If you get plugin modules from CPAN, you'll need
+to copy the .pm files into your plugin directory.
+
+Some plugins enhance the listener process and therefore only need to be
+installed on your workstation.  Other plugins enhance the client so they need
+to be installed on the servers where you use bcvi.  Client-side plugins can
+register themselves to be included in the set of files that get deployed to a
+host when you run C<< bcvi --install HOSTNAME >>.
+
+=head1 CLASS HOOKS
+
+The BCVI application is built from four classes:
+
+=over 4
+
+=item B<App::BCVI::Server>
+
+Implements the listener process as a forking server.  Listens on a socket, when
+and incoming connection is received, a child process is forked off to handle
+it.
+
+=item B<App::BCVI::Client>
+
+Implements the client process which establishes a TCP connection to the
+listener process, sends a request and waits for a response.
+
+=item B<App::BCVI>
+
+A base class implements common methods used by both the client and the server.
+
+=item B<App::BCVI::POD>
+
+A helper class used by both the client and the server to render POD to text
+in response to the C<--help> option.
+
+=back
+
+A plugin can push its package name onto the inheritance chain for the server
+by calling:
+
+  App::BCVI->hook_server_class();
+
+or for the client by calling
+
+  App::BCVI->hook_client_class();
+
+There are currently no hook methods for either the base class or the POD class
+because that didn't seem very useful (just ask if you really need this).
+
+The example plugin above had a package name of C<App::BCVI::Gedit> and it
+called C<hook_server_class()>.  This has two effects:
+
+=over 4
+
+=item 1
+
+When a listener process is started, it will be an instance of the
+C<App::BCVI::Gedit> class
+
+=item 2
+
+The C<@ISA> array in the C<App::BCVI::Gedit> package will be adjusted to
+point to C<App::BCVI::Server> so that all the existing methods of the server
+class will be inherited
+
+=back
+
+If another package calls C<hook_server_class()> then its C<@ISA> array will be
+adjusted to point to the C<App::BCVI::Gedit> class and when the listener starts
+it will be an instance of the second plugin class.  Usually the order of
+loading would not be significant, but the plugin filenames are sorted
+alphanumerically before loading so you can rename the C<.pm> files to have them
+load in a specific order.
+
+If your plugin calls a hook method it should not explicitly set up any other
+inheritance relationship (either through C<use base> or by directly altering
+@ISA).
+
+Sometimes it might not be immediately obvious whether you need to hook the
+client class or the server class.  For example if your code modifies the
+behaviour of the C<--install> option then it would not be a part of the
+listener process but it also might not run on a remote server.  The rule in
+these cases is: I<If your code does not run in the listener then it should hook
+the client class>.
+
+One plugin should not call both C<hook_server_class()> and
+C<hook_client_class()> - no good can come of that.
+
+
+=head1 REGISTRATION
+
+In addition to being able to hook into the inheritance chains, a plugin can
+also choose to call one of the registration methods:
+
+=head2 C<< register_option(key => value, ...) >>
+
+This method is used to register a new command-line option.  The arguments
+are key => value pairs, for example:
+
+  App::BCVI->register_option(
+      name        => 'command',
+      alias       => 'c',
+      arg_spec    => '=s',
+      arg_name    => '<cmnd>',
+      summary     => 'command to send over back-channel',
+      description => <<'END_POD'
+  Use C<cmnd> as the command to send over the back-channel (default: vi).
+  Recognised commands are described in L<COMMANDS> below.
+  END_POD
+  );
+
+The recognised keys are (*=mandatory parameter):
+
+  *name         the long form of the option name (without the initial '--')
+   alias        optional single character alias
+   arg_spec     if the option takes a value use '=s' for string '=i' for int etc
+   arg_name     how the option value should be rendered in the POD
+   dispatch_to  name of a method to be called if this option is present
+  *summary      one-line summary of the option for the synopsis
+  *description  longer POD snippet providing a full description of the option
+
+The command line options are parsed using L<Getopt::Long> so you can refer to
+that module's documentation for more details (of the C<arg_spec> in particular).
+
+If your plugin registers a command-line option then your summary and
+description should be visible immediately when you run C<bcvi --help>.
+
+Only specify a C<dispatch_to> method if C<bcvi> should exit immediately after
+your method is called.
+
+After you have registered a command-line option, code in your plugin methods
+can check the value of the option (or any other option) with:
+
+  $self->opt($option_name)
+
+If you are unsure about the usage of any of the parameters listed above, please
+refer to the numerous examples in C<bcvi> itself.
+
+=head2 C<< register_command(key => value, ...) >>
+
+This method is used to register a handler for a new command in the listener.
+The arguments are key => value pairs, for example:
+
+  App::BCVI->register_command(
+      name        => 'scpd',
+      description => <<'END_POD'
+  Uses C<scp> to copy the specified files to the calling user's F<~/Desktop>.
+  END_POD
+  );
+
+The recognised keys are (*=mandatory parameter):
+
+  *name         the 'command' name which will be sent from the client
+   dispatch_to  name of the handler method
+  *description  POD snippet providing a full description of the command
+
+If you don't provide a method name as an argument to the C<dispatch_to>
+parameter, then the default handler method name will be the command name with
+'execute_' prepended.
+
+See L<"COMMAND HANDLERS"> below for details of how the handler method is
+called.
+
+=head2 C<< register_aliases(alias, ...) >>
+
+This method is used to register shell alias definitions that should be added
+to the user's local shell startup script with C<< bcvi --add-aliases >> or
+to the shell startup script on a remote host with C<< bcvi --install >>.
+
+One call can register a list of aliases, for example:
+
+  App::BCVI->register_aliases(
+      'test -n "${BCVI_CONF}"  && alias vi="bcvi"',
+      'test -n "${BCVI_CONF}"  && alias bcp="bcvi -c scpd"',
+  );
+
+
+=head2 C<< register_installable() >>
+
+A client-side plugin should call this method to indicate that the plugin file
+is required on the remote hosts and should be copied over by C<< bcvi --install >>.
+
+This method call requires no arguments:
+
+  App::BCVI->register_installable();
+
+=head1 COMMAND HANDLERS
+
+When the listener receives a command it looks up the registered commands to
+locate a handler method and then calls that method (with no arguments).
+
+If the handler method expects a list of filenames, it can get them by calling:
+
+  $self->get_filenames()
+
+Alternatively, if the handler method expects string data rather than filenames,
+it can call:
+
+  $self->read_request_body()
+
+for non-ASCII text data you may want to decode the bytes to characters using
+the L<Encode> module:
+
+  decode('utf8', $self->read_request_body())
+
+The handler can also access the request headers via the hashref returned by:
+
+  $self->request()
+
+If for some reason the handler method needs direct read or write access to the
+client socket, it can get the socket filehandle with:
+
+  $self->sock();
+
+=head2 Response Status Codes
+
+You probably don't need to worry about this section - usually a handler does
+not need to worry about returning a status code at all.
+
+On successful completion, a command handler method should simply return (the
+return value is not significant).  The listener process will send a C<< 200
+Success >> status response.
+
+On failure, a command handler may choose to die and the message will go to the
+user's X Session log.  The client will see the socket close and will advise the
+user that the "Server hung up".
+
+There are a small number of predefined status codes that can be returned to the
+client (but most command handlers will never need to use them):
+
+  200   Success
+  300   Response follows
+  900   Permission denied
+  910   Unrecognised command
+
+You can send a response by calling:
+
+  $self->send_response($code)   # eg: $code = 900
+
+There is currently no way to register additional codes, but of course a handler
+routine could make up its own status code, write it directly to the socket
+(using C<< $self->sock->write >>) and then exit.
+
+The '300' response is useful for the situation where the client sent a request
+and is expecting data in the body of the response.  If you want to see an
+example of this functionality, look at the built-in 'commands_pod' message that
+the C<bcvi> client uses to retrieve the POD for all commands supported by the
+listener.  A 300 response must be followed by one or more headers - terminated
+by a blank line.  A 'Content-length' header must be included to indicate how
+many bytes of data follow the headers.
+
+
+=head1 SEE ALSO
+
+For examples of plugins, look for these modules on CPAN:
+
+=over 4
+
+=item L<App::BCVI::NotifyClient>
+
+Implements the client-side of the Desktop notification plugin.  Registers a
+shell alias and registers as an installable file.
+
+=item L<App::BCVI::Notify>
+
+Implements the server-side of the Desktop notification plugin.  Registers a
+new command, hooks the server class and implements a command handler.
+
+=item L<App::BCVI::InstallManager>
+
+Hooks the client class to track which hosts C<bcvi> has been installed to (using
+C<< bcvi --install >>).  Wraps the handler for the existing C<--install>
+option handler and also adds a new C<--update-all> option.
+
+=back
+
+The source of C<bcvi> itself is also a good place to look for examples of how
+to register options and commands and how to implement a command handler.
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2007-2010 Grant McLean C<< <grantm at cpan.org> >>
+
+This program is free software; you can redistribute it and/or modify it under
+the same terms as Perl itself.
+
+=cut
+

@@ -1,0 +1,54 @@
+App-BCVI-InstallManager
+
+This module is a plugin for 'bcvi' (see: http://search.cpan.org/dist/App-BCVI).
+To use it, simply copy the InstallManager.pm file to your $HOME/.config/bcvi/
+folder.
+
+The role of this plugin is to track which remote hosts you have installed
+'bcvi' to.  Each time you run this command ...
+
+    bcvi --install HOSTNAME
+
+the InstallManager plugin records the hostname and the MD5 checksum of the
+'bcvi' script and all its plugins.  Later when you run ...
+
+    bcvi --update-all
+
+the InstallManager plugin will run --install against each host where 'bcvi'
+has been installed, but is now in need of an update.
+
+
+SUPPORT AND DOCUMENTATION
+
+You can find documentation for this module with the perldoc command.
+
+Before installation:
+
+    perldoc lib/App/BCVI/InstallManager.pm
+
+After instalation:
+
+    perldoc $HOME/.config/bcvi/InstallManager.pm
+
+You can also look for information at:
+
+    RT, CPAN's request tracker
+        http://rt.cpan.org/NoAuth/Bugs.html?Dist=App-BCVI-InstallManager
+
+    AnnoCPAN, Annotated CPAN documentation
+        http://annocpan.org/dist/App-BCVI-InstallManager
+
+    CPAN Ratings
+        http://cpanratings.perl.org/d/App-BCVI-InstallManager
+
+    Search CPAN
+        http://search.cpan.org/dist/App-BCVI-InstallManager
+
+
+COPYRIGHT AND LICENCE
+
+Copyright (C) 2010 Grant McLean
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+

@@ -1,0 +1,25 @@
+Revision history for App-BCVI
+
+3.02    2010-06-05
+        - allow optional arguments on 'dispatch_to' options
+        - list installed plugins in --help
+        - add --plugin-help option
+
+3.01    2010-06-05
+        - Fix bug where remote username was not being propagated to $BCVI_CONF
+          (bug report from Douglas Wilson)
+
+3.00    2010-06-03
+        First version, uploaded to CPAN
+        Complete rewrite to support plugin API
+
+2.xx    ????-??-??
+        Numerous unreleased versions added support for:
+        * authentication via shared secrets
+        * additional backchannel commands
+        * automated installation
+        * improved reliability
+
+1.00    2007-04-23
+        First version published on PerlMonks
+
