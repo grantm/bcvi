@@ -774,14 +774,25 @@ sub commands_pod {
 sub wrap_ssh {
     my($self, @args_in) = @_;
 
+    if(my($target, @args_out) = $self->parse_ssh_args(@args_in)) {
+        $self->execute_wrapped_ssh($target, @args_out);
+    }
+    else {
+        warn "bcvi: unable to extract hostname from ssh command line\n";
+        $self->execute_ssh(@args_in);
+    }
+}
+
+
+sub parse_ssh_args {
+    my($self, @args_in) = @_;
+
     my %need_arg = map { $_ => 1} split //, 'bcDeFiLlmOopRS';
 
-    my @orig = @args_in;
-    my(@args_out, @hosts);
-    my $user = '';
+    my(@args_out, @hosts, $user);
     while(@args_in) {
         $_ = shift @args_in;
-        if(/^-l(.*)$/) {             # extract username if specificed with -l
+        if(/^-l(.*)$/) {             # extract username if specified with -l
             $user = $1 ? $1 : $args_in[0];
         }
         if(/^-(.)(.*)$/) {
@@ -794,23 +805,25 @@ sub wrap_ssh {
             push @hosts,    $_;
         }
     }
-    if(@hosts == 1) {
-        my($target) = @hosts;
-        if($user and $target !~ /@/) {
-            $target = $user . '@' . $target;
-        }
-        my $remote_port = $self->opt('port') || $self->default_port();
-        my $local_port  = $self->listener_port();
-        $ENV{TERM} = "$ENV{TERM}\n"
-                     . "BCVI_CONF=${target}:localhost:$remote_port:"
-                     . $self->get_listener_auth_key();
-        unshift @args_out, "-R $remote_port:localhost:$local_port";
+    return unless @hosts == 1;
+    my($target) = @hosts;
+    if($user and $target !~ /@/) {
+        $target = $user . '@' . $target;
     }
-    else {
-        warn "bcvi: unable to extract hostname from ssh command line\n";
-        @args_out = @orig;
-    }
-    $self->execute_ssh(@args_out);
+    return($target, @args_out);
+}
+
+
+sub execute_wrapped_ssh {
+    my($self, $target, @args) = @_;
+
+    my $remote_port = $self->opt('port') || $self->default_port();
+    my $local_port  = $self->listener_port();
+    $ENV{TERM} = "$ENV{TERM}\n"
+                 . "BCVI_CONF=${target}:localhost:$remote_port:"
+                 . $self->get_listener_auth_key();
+    unshift @args, "-R $remote_port:localhost:$local_port";
+    $self->execute_ssh(@args);
 }
 
 
