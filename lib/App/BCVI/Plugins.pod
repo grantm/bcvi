@@ -58,7 +58,7 @@ C<gedit> (the GNOME text editor) - I did warn you it was a silly example:
   
   1;
 
-This file should be saved as F<$HOME/.config/bcvi/Gedit.pm>.  Lets go through
+This file should be saved as F<$HOME/.config/bcvi/Gedit.pm>.  Let's go through
 it line-by-line.
 
 Each plugin must have a unique package name.  The App::BCVI namespace is there
@@ -83,11 +83,12 @@ standard method rather than augmenting it.
 Plugin files are never loaded from anywhere except the user's BCVI config
 directory.  In particular, C<bcvi> never loads any modules from the system
 F<lib/App/BCVI> directory.  If you get plugin modules from CPAN, you'll need
-to copy the .pm files into your plugin directory.
+to copy the .pm files into your plugin directory (or possibly symlink to the
+.pm file in the system lib directory).
 
 Some plugins enhance the listener process and therefore only need to be
 installed on your workstation.  Other plugins enhance the client so they need
-to be installed on the servers where you use bcvi.  Client-side plugins can
+to be installed on the hosts where you use bcvi.  Client-side plugins can
 register themselves to be included in the set of files that get deployed to a
 host when you run C<< bcvi --install HOSTNAME >>.
 
@@ -100,8 +101,7 @@ The BCVI application is built from four classes:
 =item B<App::BCVI::Server>
 
 Implements the listener process as a forking server.  Listens on a socket, when
-and incoming connection is received, a child process is forked off to handle
-it.
+an incoming connection is received, a child process is forked off to handle it.
 
 =item B<App::BCVI::Client>
 
@@ -163,11 +163,11 @@ inheritance relationship (either through C<use base> or by directly altering
 Sometimes it might not be immediately obvious whether you need to hook the
 client class or the server class.  For example if your code modifies the
 behaviour of the C<--install> option then it would not be a part of the
-listener process but it also might not run on a remote server.  The rule in
+listener process but it also might not run on a remote host.  The rule in
 these cases is: I<If your code does not run in the listener then it should hook
 the client class>.
 
-One plugin should not call both C<hook_server_class()> and
+A single plugin should not call both C<hook_server_class()> and
 C<hook_client_class()> - no good can come of that.
 
 
