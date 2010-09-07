@@ -1,8 +1,6 @@
 use strict;
 use warnings;
 
-require 5.008;
-
 use ExtUtils::MakeMaker;
 
 WriteMakefile(
@@ -10,6 +8,7 @@ WriteMakefile(
     AUTHOR              => 'Grant McLean <grantm@cpan.org>',
     VERSION_FROM        => 'bin/bcvi',
     ABSTRACT_FROM       => 'lib/App/BCVI.pod',
+    MIN_PERL_VERSION    => 5.008,
     PL_FILES            => {},
     PREREQ_PM => {
         'Test::More' => 0,

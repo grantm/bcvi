@@ -1,5 +1,9 @@
 Revision history for App-BCVI
 
+3.03    2010-09-07
+        - make the wrap_ssh() method more overridable (feature request from
+          Andrew Ruthven)
+
 3.02    2010-06-05
         - allow optional arguments on 'dispatch_to' options
         - list installed plugins in --help
