@@ -1,5 +1,8 @@
 Revision history for App-BCVI
 
+3.04    2010-11-27
+        - add -r option so that bcp can copy directories too
+
 3.03    2010-09-07
         - make the wrap_ssh() method more overridable (feature request from
           Andrew Ruthven)

@@ -26,7 +26,7 @@ require 5.008;
 
 package App::BCVI;
 
-our $VERSION   = '3.03';
+our $VERSION   = '3.04';
 
 use File::Spec;
 use File::Path;
@@ -242,7 +242,8 @@ END_POD
     $class->register_command(
         name        => 'scpd',
         description => <<'END_POD'
-Uses C<scp> to copy the specified files to the calling user's F<~/Desktop>.
+Uses C<scp> to copy the specified files or directories to the calling user's
+F<~/Desktop>.`
 END_POD
     );
 
@@ -1255,7 +1256,7 @@ sub execute_scpd {
     my $alias = $self->calling_host();
     my @files = map { "$alias:$_" } $self->get_filenames();
 
-    system('scp', '-q', '--', @files, $dest);
+    system('scp', '-q', '-r', '--', @files, $dest);
 }
 
 
