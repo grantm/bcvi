@@ -134,7 +134,7 @@ double-click the desktop icon to open it in her PDF viewer.
 =head2 How Example 2 Worked
 
 This second example used all the same infrastructure as the first (listener
-process, shell aliases and port forward) but added the command C<bcp>  Once
+process, shell aliases and port forward) but added the command C<bcp>.  Once
 again, this is a shell alias that invokes C<bcvi> to send a message back to the
 listener process.  The only difference is that this time the message instructs
 the listener process to run this command:
@@ -263,7 +263,7 @@ this is generated:
 
   ssh -R 10569:localhost:10569 HOSTNAME
 
-The first port number is the local port that the listener will accpet
+The first port number is the local port that the listener will accept
 connections on.  The second port number is the port on the remote machine that
 the C<bcvi> client will connect to and which SSH will forward back to the
 listener.  You can override the second port number when you connect.  The first
