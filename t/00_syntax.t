@@ -3,6 +3,8 @@
 use strict;
 use warnings;
 
+use 5.008;
+
 use Test::More tests => 1;
 
 use FindBin;
