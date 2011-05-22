@@ -248,6 +248,7 @@ END_POD
     );
 
 
+    $class->add_home_bin();
     $class->register_aliases(
         'test -n "$(which bcvi)" && eval "$(bcvi --unpack-term)"',
         'test -n "${BCVI_CONF}"  && alias vi="bcvi"',
@@ -330,6 +331,15 @@ sub command_handler {
     return "execute_commands_pod" if $name eq 'commands_pod';
     my $spec = $commands{$name} or return;
     return $spec->{dispatch_to};
+}
+
+
+sub add_home_bin {
+    my $class = shift;
+    my $home_bin = $class->home_directory . '/bin';
+    $class->register_aliases(
+        qq{echo \$PATH | grep -q $home_bin || PATH="$home_bin/\$PATH"},
+    );
 }
 
 
