@@ -1,4 +1,8 @@
-Revision history for App-BCVI
+Revision history for {{$dist->name}}
+
+{{$NEXT}}
+        - add $HOME/bin to $PATH if not there already
+        - switch packaging to use Dist::Zilla
 
 3.04    2010-11-27
         - add -r option so that bcp can copy directories too
