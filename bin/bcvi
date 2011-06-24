@@ -336,7 +336,7 @@ sub add_home_bin {
     my $class = shift;
     my $home_bin = $class->home_directory . '/bin';
     $class->register_aliases(
-        qq{echo \$PATH | grep -q $home_bin || PATH="$home_bin/\$PATH"},
+        qq{echo \$PATH | grep -q $home_bin || PATH="$home_bin:\$PATH"},
     );
 }
 
