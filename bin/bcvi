@@ -91,6 +91,15 @@ END_POD
     );
 
     $class->register_option(
+        name        => 'debug',
+        alias       => 'd',
+        summary     => 'turn on debugging',
+        description => <<'END_POD'
+Turn on debugging messages.
+END_POD
+    );
+
+    $class->register_option(
         name        => 'add-aliases',
         dispatch_to => 'add_aliases',
         summary     => 'install bcvi into shell startup files',
@@ -471,10 +480,19 @@ sub new {
 }
 
 
+sub DEBUG {
+    my $self = shift;
+
+    return unless $self->opt('debug');
+    warn "$_\n" foreach @_;
+}
+
+
 sub dispatch {
     my($self, @args) = @_;
 
     if(my $method = $self->dispatch_option) {
+        $self->DEBUG("Dispatching to: $method");
         $self->$method(@args);
         exit;
     }
@@ -1093,11 +1111,13 @@ sub generate_auth_key {
 
     if($self->opt('reuse-auth')) {
         $self->{auth_key} = $self->get_listener_auth_key();
+        $self->DEBUG("Reusing auth key: $self->{auth_key}");
         return;
     }
 
     my $data = "$self" . $$ . time() . rand();
     $self->{auth_key} = md5_hex($data);
+    $self->DEBUG("Generated new auth key: $self->{auth_key}");
 
     my $auth_file = $self->auth_key_filename();
     open my $fh, '>', $auth_file or die "open(>$auth_file): $!";
@@ -1111,6 +1131,7 @@ sub create_listener_socket {
     my $port = $self->opt('port') || $self->default_port();
     $self->save_port($port);
     my $local_addr = $self->listen_address . ':' .  $port;
+    $self->DEBUG("Starting listener on: $local_addr");
     $self->{sock} = IO::Socket::INET->new(
         LocalAddr => $local_addr,
         ReuseAddr => 1,
@@ -1130,6 +1151,7 @@ sub accept_loop {
     while(1) {
         my $new = $sock->accept();
         next if $!{EINTR};
+        $self->DEBUG("Accepted connection");
         if(fork()) {  # In parent
             close $new;
         }
@@ -1148,10 +1170,13 @@ sub dispatch_request {
 
     $self->send_response(100);
     my $req = $self->collect_headers();
+    $self->DEBUG("Calling host: " . $self->calling_host());
     $self->validate_auth_key($req->{auth_key})
         or $self->exit_response(900);
+    $self->DEBUG("Received command: $req->{command}");
     my $method = $self->command_handler($req->{command})
         or $self->exit_response(910);
+    $self->DEBUG("Dispatching to: $method");
     $self->$method();
     $self->send_response(200);
 }
@@ -1162,7 +1187,7 @@ sub validate_auth_key {
 
     return 1 if $key && $key eq $self->auth_key;
     my $alias = $self->calling_host();
-    warn "Invalid Auth-Key in request from $alias\n" if -t 2;
+    $self->DEBUG("Invalid Auth-Key in request from $alias");
     return;
 }
 
@@ -1172,6 +1197,7 @@ sub send_response {
 
     my $message = $self->message_from_code($code) || 'Invalid response code';
     $message = Encode::encode('utf8', $message);
+    $self->DEBUG("Sending response: $code $message");
     $self->sock->write(qq{$code $message\x0A});
 }
 
@@ -1219,7 +1245,9 @@ sub read_request_body {
 sub get_filenames {
     my($self) = @_;
 
-    return split /\x0a/, Encode::decode('utf8', $self->read_request_body());
+    my @files = split /\x0a/, Encode::decode('utf8', $self->read_request_body());
+    $self->DEBUG("Filename: $_") foreach @files;
+    return @files;
 }
 
 
