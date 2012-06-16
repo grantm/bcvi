@@ -675,11 +675,13 @@ sub send_command {
 
     my $sock = $self->connect_to_listener();
 
-    $sock->write(
+    my $request =
         "Auth-Key: "   . $self->auth_key   . $LF .
         "Host-Alias: " . $self->host_alias . $LF .
-        "Command: "    . $command          . $LF
-    ) or die "Error sending command through backchannel: $!";
+        "Command: "    . $command          . $LF;
+    $self->DEBUG($request);
+    $sock->write($request)
+        or die "Error sending command through backchannel: $!";
 
     $self->send_body(\@files);
     return if $self->check_response() =~ /^(?:200|300)$/;
@@ -709,6 +711,8 @@ sub check_response {
     my($self) = @_;
 
     my $response = $self->sock->getline() or die "Server hung up\n";
+    chomp($response);
+    $self->DEBUG("Received response: $response");
     if(my($code, $message) = $response =~ m{^(\d\d\d) (.*)$}) {
         ($self->{response_code}, $self->{response_message}) = ($code, $message);
         $self->read_response() if $code eq '300';
@@ -749,6 +753,7 @@ sub connect_to_listener {
     my($self) = @_;
 
     $self->get_connection_details();
+    $self->DEBUG("Connecting to: " . $self->gateway_address . ':' . $self->port);
 
     my $peer = $self->gateway_address . ':' . $self->port;
     my $sock = IO::Socket::INET->new(
@@ -757,6 +762,8 @@ sub connect_to_listener {
 
     binmode($sock);
     my $welcome = $sock->getline() or die "No listener?\n";
+    chomp($welcome);
+    $self->DEBUG("Server banner: $welcome");
     if($welcome =~ /^100 Ready \(([^)]+)\)/) {
         $self->{server_version} = $1;
     }
