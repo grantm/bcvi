@@ -26,6 +26,8 @@ require 5.008;
 
 package App::BCVI;
 
+our $VERSION   = '3.06';
+
 use File::Spec;
 use File::Path;
 use Getopt::Long qw();
