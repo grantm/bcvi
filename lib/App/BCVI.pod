@@ -372,7 +372,7 @@ L<http://github.com/grantm/bcvi>
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2007-2010 Grant McLean C<< <grantm at cpan.org> >>
+Copyright 2007-2012 Grant McLean C<< <grantm at cpan.org> >>
 
 This program is free software; you can redistribute it and/or modify it under
 the same terms as Perl itself.

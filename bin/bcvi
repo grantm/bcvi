@@ -9,7 +9,7 @@
 #
 # Use 'bcvi --help' for the documentation
 #
-# Copyright (c) 2007-2010 Grant McLean <grantm@cpan.org>
+# Copyright (c) 2007-2012 Grant McLean <grantm@cpan.org>
 #
 
 use strict;
@@ -1576,7 +1576,7 @@ The installation to a remote server should set up aliases, e.g.:
 
 =head1 COPYRIGHT
 
-Copyright 2007-2010 Grant McLean E<lt>grantm@cpan.orgE<gt>
+Copyright 2007-2012 Grant McLean E<lt>grantm@cpan.orgE<gt>
 
 This library is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
