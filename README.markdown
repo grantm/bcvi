@@ -20,10 +20,17 @@ Because the editor process is running on your workstation:
  * your remote shell window is available to run other commands
 
 
+More Info
+---------
+
+For a more detailed description of `bcvi` (with pretty pictures), go to:
+[http://sshmenu.sourceforge.net/articles/bcvi/](http://sshmenu.sourceforge.net/articles/bcvi/).
+
+
 Copyright and Licence
 ---------------------
 
-Copyright (C) 2007-2010 Grant McLean
+Copyright (C) 2007-2012 Grant McLean
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
