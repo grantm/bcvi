@@ -780,7 +780,7 @@ sub show_versions {
 
     if($ENV{BCVI_CONF}) {
         $self->connect_to_listener();
-        print "bcvi server: $App::BCVI::VERSION\n";
+        print "bcvi server: " . $self->server_version . "\n";
     }
 }
 
