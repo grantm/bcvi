@@ -1,5 +1,8 @@
 Revision history for App-BCVI-NotifyDesktop
 
+1.01    2012-09-21
+        Update docs to mention new --idle and --output modes on client
+
 1.00    2010-06-03
         First version, uploaded to CPAN
 

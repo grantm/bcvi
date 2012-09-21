@@ -40,6 +40,14 @@ Send a message which will be displayed as a notification on the user's desktop
 (where the bcvi listener is running).  Typically used with the
 C<--no-path-xlate> option so that any arguments are passed as text strings
 rather than as a list of filenames.
+
+The client side for this command (the 'bnotify' alias) also accepts C<--idle>
+and C<--output> options which cause it to fork a background process to monitor
+the current TTY and notify you of idle time (e.g. if a process is waiting for
+input), For more info see:
+
+  bcvi --plugin-help NotifyClient
+
 END_POD
 );
 
@@ -71,6 +79,10 @@ display by a notification applet running in the user's desktop environment.
 You can look for information at:
 
 =over 4
+
+=item * Source code
+
+L<https://github.com/grantm/bcvi> (under 'plugins')
 
 =item * RT: CPAN's request tracker
 
