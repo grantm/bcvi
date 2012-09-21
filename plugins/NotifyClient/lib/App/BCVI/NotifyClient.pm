@@ -33,7 +33,7 @@ sub _notify_handle_tty_monitoring {
 
     if($opt{idle}) {
         print "Starting background process to monitor $opt{tty} for $opt{idle} second idle period\n";
-        print "Kill monitor with: $0 --kill\n";
+        print "Kill monitor with: bnotify --kill\n";
         $opt{output} = $default_poll_interval;
         $self->_notify_fork_bg_tty_monitor(sub {
             while(1) {
