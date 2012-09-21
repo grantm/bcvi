@@ -1,5 +1,9 @@
 Revision history for App-BCVI-NotifyClient
 
+2.00    2012-09-21
+        Added --idle and --output modes to monitor TTY and issue notifications
+        of activity (or lack thereof)
+
 1.00    2010-06-03
         First version, uploaded to CPAN
 
