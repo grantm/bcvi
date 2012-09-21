@@ -2,6 +2,11 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
+3.07      2012-09-21 21:40:47 Pacific/Auckland
+        - fixed server version reported by --version
+        - moved docs from .pod to .pm
+        - fix a couple of warnings from debug code
+
 3.06      2012-07-06 06:50:38 Pacific/Auckland
         - added a --debug option
         - fix dumb typo in $PATH setting
