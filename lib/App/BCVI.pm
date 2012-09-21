@@ -1,3 +1,11 @@
+package App::BCVI;
+
+# This file is documentation only - all code is in bin/bcvi.  Package name is
+# only mentioned here to claim the namespace on CPAN/PAUSE.
+
+1;
+
+__END__
 
 =head1 NAME
 
@@ -60,7 +68,8 @@ no GUI apps or libraries need to be installed on the server*
 =back
 
 *You might argue that C<bcvi> itself will need to be installed on the server,
-but Sally can do that from her workstation with one simple command (and no need for root access):
+but Sally can do that from her workstation with one simple command (and no need
+for root access):
 
   ~$ bcvi --install pluto
   Creating ~/bin directory on pluto
@@ -347,6 +356,10 @@ You can also refer to:
 
 =over 4
 
+=item * Source Repository
+
+L<http://github.com/grantm/bcvi>
+
 =item * RT: CPAN's request tracker (for bug reports)
 
 L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=App-BCVI>
@@ -362,10 +375,6 @@ L<http://cpanratings.perl.org/d/App-BCVI>
 =item * Search CPAN
 
 L<http://search.cpan.org/dist/App-BCVI>
-
-=item * Source Repository
-
-L<http://github.com/grantm/bcvi>
 
 =back
 
