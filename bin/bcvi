@@ -1179,7 +1179,7 @@ sub dispatch_request {
 
     $self->send_response(100);
     my $req = $self->collect_headers();
-    $self->DEBUG("Calling host: " . $self->calling_host());
+    $self->DEBUG("Calling host: " . $self->calling_host) if $self->calling_host;
     $self->validate_auth_key($req->{auth_key})
         or $self->exit_response(900);
     $self->DEBUG("Received command: $req->{command}");
@@ -1196,7 +1196,7 @@ sub validate_auth_key {
 
     return 1 if $key && $key eq $self->auth_key;
     my $alias = $self->calling_host();
-    $self->DEBUG("Invalid Auth-Key in request from $alias");
+    $self->DEBUG("Invalid Auth-Key in request from $alias") if $key;
     return;
 }
 
