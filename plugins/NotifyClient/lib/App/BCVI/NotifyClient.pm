@@ -3,7 +3,7 @@ package App::BCVI::NotifyClient;
 use warnings;
 use strict;
 
-our $VERSION = '1.00';
+our $VERSION = '2.00';
 
 use POSIX qw(setsid);
 
