@@ -26,7 +26,7 @@ require 5.008;
 
 package App::BCVI;
 
-our $VERSION   = '3.07';
+our $VERSION   = '3.08';
 
 use File::Spec;
 use File::Path;
@@ -898,17 +898,24 @@ sub install_to_hosts {
 
     die "You must list one or more target hostnames\n" unless @args;
 
-    $self->install_to_host($_) foreach @args;
+    my $fail_count = 0;
+    foreach my $host ( @args ) {
+        $self->install_to_host($host) or $fail_count++;
+    }
+    exit 1 if $fail_count;
 }
 
 
 sub install_to_host {
     my($self, $host) = @_;
 
-    $self->install_bin_directory($host);
-    $self->install_bcvi_script($host);
-    $self->install_plugins($host);
-    $self->install_remote_aliases($host);
+    $self->install_bin_directory($host)
+        && $self->install_bcvi_script($host)
+        && $self->install_plugins($host)
+        && $self->install_remote_aliases($host)
+        && return 1;
+    $self->report_install_failure($host);
+    return;
 }
 
 
@@ -917,9 +924,12 @@ sub install_bin_directory {
 
     if(system("ssh $host test -d ./bin") != 0) {
         print "Creating ~/bin directory on $host\n";
-        system("ssh $host mkdir ./bin") == 0
-            or die "** mkdir failed on $host";
+        if( system("ssh $host mkdir ./bin") != 0 ) {
+            warn "** mkdir failed on $host";
+            return;
+        }
     }
+    return 1;
 }
 
 
@@ -929,9 +939,11 @@ sub install_bcvi_script {
     print "Copying bcvi to remote bin directory on $host\n";
     my $output = `scp $0 $host:bin/bcvi 2>&1`;
     if($? != 0) {
-        die "** failed to copy bcvi to remote bin directory on $host\n"
-            . $output;
+        warn "** failed to copy bcvi to remote bin directory on $host\n"
+             . $output;
+        return;
     }
+    return 1;
 }
 
 
@@ -941,23 +953,36 @@ sub install_plugins {
     return unless @installables;
     if(system("ssh $host test -d ./.config/bcvi") != 0) {
         print "Creating plugins directory on $host\n";
-        system("ssh $host mkdir -p ./.config/bcvi") == 0
-            or die "** mkdir failed on $host";
+        if( system("ssh $host mkdir -p ./.config/bcvi") != 0 ) {
+            warn "** mkdir of .config/bcvi failed on $host\n";
+            return;
+        }
     }
     print "Copying plugin files to $host\n";
     my $output = `scp @installables $host:.config/bcvi 2>&1`;
     if($? != 0) {
-        die "** failed to copy bcvi to remote plugins directory on $host\n"
-            . $output;
+        warn "** failed to copy bcvi to remote plugins directory on $host\n"
+             . $output;
+        return;
     }
+    return 1;
 }
 
 
 sub install_remote_aliases {
     my($self, $host) = @_;
 
-    system("ssh $host bin/bcvi --add-aliases") == 0
-        or die "** failed to install aliases on $host";
+    if( system("ssh $host bin/bcvi --add-aliases") != 0 ) {
+        warn "** failed to install aliases on $host\n";
+        return;
+    }
+    return 1;
+}
+
+
+sub report_install_failure {
+    my($self, $host) = @_;
+    warn "\n*** Installation of bcvi on host '$host' failed ***\n\n";
 }
 
 

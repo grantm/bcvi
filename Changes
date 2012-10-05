@@ -1,6 +1,7 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+        - changed install_to_host() method to no longer die on error
 
 3.07      2012-09-21 21:40:47 Pacific/Auckland
         - fixed server version reported by --version
