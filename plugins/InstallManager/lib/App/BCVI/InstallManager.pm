@@ -72,8 +72,11 @@ sub install_to_host {
     my($self, $host) = @_;
 
     my $sig = $self->install_source_signature();
-    $self->SUPER::install_to_host($host);
-    $self->set_install_signature($host=> $sig);
+    if( $self->SUPER::install_to_host($host) ) {
+        $self->set_install_signature($host=> $sig);
+        return 1;
+    }
+    return;
 }
 
 
