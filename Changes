@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+3.08      2012-10-06 12:02:29 Pacific/Auckland
         - changed install_to_host() method to no longer die on error
 
 3.07      2012-09-21 21:40:47 Pacific/Auckland
