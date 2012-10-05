@@ -1,5 +1,9 @@
 Revision history for App-BCVI-InstallManager
 
+1.02    2012-10-06
+        - the core install_to_host() method no longer dies on an install
+          failure - fix propagation of return value
+
 1.01    2010-06-05
         - add sub option to list installed hosts
         - add sub option to remove host from list
