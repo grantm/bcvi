@@ -7,7 +7,7 @@ use Digest::MD5;
 use Fcntl;
 use SDBM_File;
 
-our $VERSION = '1.01';
+our $VERSION = '1.02';
 
 my($source_signature, %sig_db, $db_file);
 
@@ -96,6 +96,15 @@ sub set_install_signature {
     $self->tie_install_sig_db();
     $sig_db{$host} = $sig;
     $self->untie_install_sig_db();
+}
+
+
+sub get_install_signature {
+    my($self, $host) = @_;
+    $self->tie_install_sig_db();
+    my $sig = $sig_db{$host};
+    $self->untie_install_sig_db();
+    return $sig;
 }
 
 

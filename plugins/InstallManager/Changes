@@ -1,5 +1,8 @@
 Revision history for App-BCVI-InstallManager
 
+1.02    2010-09-07
+        - add get_install_signature() method (patch from Andrew Ruthven)
+
 1.01    2010-06-05
         - add sub option to list installed hosts
         - add sub option to remove host from list
