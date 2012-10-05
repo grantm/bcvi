@@ -7,7 +7,7 @@ use Digest::MD5;
 use Fcntl;
 use SDBM_File;
 
-our $VERSION = '1.02';
+our $VERSION = '1.03';
 
 my($source_signature, %sig_db, $db_file);
 
