@@ -950,7 +950,7 @@ sub install_bcvi_script {
 sub install_plugins {
     my($self, $host) = @_;
 
-    return unless @installables;
+    return 1 unless @installables;
     if(system("ssh $host test -d ./.config/bcvi") != 0) {
         print "Creating plugins directory on $host\n";
         if( system("ssh $host mkdir -p ./.config/bcvi") != 0 ) {
