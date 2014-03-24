@@ -2,8 +2,9 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
 
-3.09      2014-03-22 22:19:00 Pacific/Los_Angeles
-        - changed install_plugins() to allow remote installation without local plugins
+3.09      2014-03-24 21:46:22 Pacific/Auckland
+        - fixes #3: allow remote installation without local plugins
+          (pull request from Will Crawford)
 
 3.08      2012-10-06 12:02:29 Pacific/Auckland
         - changed install_to_host() method to no longer die on error
