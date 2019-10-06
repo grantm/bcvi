@@ -160,9 +160,8 @@ END_POD
         dispatch_to => 'show_versions',
         summary     => 'display bcvi version number',
         description => <<'END_POD'
-When invoking a command use this option to indicate that the arguments are not
-filenames and the translation of relative pathnames to absolute should be
-skipped.
+Displays the version number of the bcvi client and if applicable, of the
+listener process.
 END_POD
     );
 
@@ -171,8 +170,9 @@ END_POD
         alias       => 'n',
         summary     => 'skip translation of args from relative to absolute',
         description => <<'END_POD'
-Displays the version number of the bcvi client and if applicable, of the
-listener process.
+When invoking a command use this option to indicate that the arguments are not
+filenames and the translation of relative pathnames to absolute should be
+skipped.
 END_POD
     );
 
